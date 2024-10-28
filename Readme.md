@@ -3,6 +3,8 @@ This repository builds on existing tools and extends funcionality according to u
 The basis for the tool box uses the [*neo*](https://github.com/NeuralEnsemble/python-neo) package and will incorporate functions from the [NWB](https://github.com/NeurodataWithoutBorders/pynwb) implementation in python.
 Additionally, the tool box relies on analysis standards from literature and implementations of analysis and convenient functions from the [schmitzlab](https://github.com/Schmitz-lab).
 
+Further documentation can be found at the [documentation page](https://danielparthier.github.io/ephystools-docs/).
+
 When contributing code make sure to follow the style guidelines and check with code formatter *black* (can be istalled via `pip install black`)
 
 ```bash
