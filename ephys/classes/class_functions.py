@@ -73,7 +73,6 @@ def wcp_trace(trace, file_path):
     trace.voltage = np.zeros((channel_count[0], segment_len, trace_len))
     trace.current = np.zeros((channel_count[1], segment_len, trace_len))
     trace.time = np.zeros((segment_len, trace_len))
-    #trace.time = data_block.segments[0].analogsignals[0].times
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = channel_information
     trace.channel_type = _type_check(reader)
