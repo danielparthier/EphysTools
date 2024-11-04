@@ -68,6 +68,7 @@ class Trace:
         rec_type: any = "",
         clamp_type: any = None,
         channel_groups: any = None,
+        subset_index_only: bool = False
     ) -> any:
         """
         Subset the experiment object based on specified criteria.
@@ -133,9 +134,15 @@ class Trace:
             ]
         else:
             subset_trace.channel_type = [[], [], [],[],[]]
+        if subset_index_only:
+            return subset_trace.channel_type
         return subset_trace
 
-    def set_time(trace_data: any, align_to_zero: bool = True, cumulative: bool = False, stimulus_interval: float = 0.0, overwrite_time: bool = True) -> any:
+    def set_time(trace_data: any,
+                 align_to_zero: bool = True,
+                 cumulative: bool = False,
+                 stimulus_interval: float = 0.0,
+                 overwrite_time: bool = True) -> any:
         """
         Set the time axis for the given trace data.
 
@@ -162,6 +169,42 @@ class Trace:
             return None
         else:
             return tmp_time
+
+    def subtract_baseline(self,
+                          window: tuple = (0, 0.1),
+                          channels: any = None,
+                          signal_type: str = "",
+                          rec_type: str = "",
+                          median: bool = False,
+                          overwrite: bool = False) -> any:
+        if not overwrite:
+            trace_copy = deepcopy(self)
+        else:
+            trace_copy = self
+        subset_channels = self.subset(channels=channels,signal_type=signal_type, rec_type=rec_type, subset_index_only=True)
+        trace_copy.set_time(align_to_zero=True, cumulative=False, stimulus_interval=0.0, overwrite_time=True)
+#        window_start_index = np.argmin(np.abs(trace_copy.time[0,:] - Quantity(window[0], 's')))
+#        window_end_index = np.argmin(np.abs(trace_copy.time[0,:] - Quantity(window[1], 's')))
+        window_start_index = np.argmin(np.abs(trace_copy.time[0,:] - window[0]))
+        window_end_index = np.argmin(np.abs(trace_copy.time[0,:] - window[1]))
+        for subset_index, signal_type_subset in enumerate(subset_channels[2]):
+            channel_index = subset_channels[4][subset_index]
+            if signal_type_subset == "voltage":
+                for sweep_index in range(0, trace_copy.voltage.shape[1]):
+                    if median:
+                        baseline = np.median(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                    else:
+                        baseline = np.mean(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                    trace_copy.voltage[channel_index, sweep_index, :] -= baseline
+            elif signal_type_subset == "current":
+                for sweep_index in range(0, trace_copy.current.shape[1]):
+                    if median:
+                        baseline = np.median(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                    else:
+                        baseline = np.mean(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                    trace_copy.current[channel_index, sweep_index, :] -= baseline
+        if not overwrite:
+            return trace_copy
 
     def average_trace(
         self,
