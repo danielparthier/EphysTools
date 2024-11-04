@@ -6,6 +6,7 @@ import time
 from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
+from quantities import Quantity
 from ephys.classes.class_functions import wcp_trace
 from ephys import utils
 
@@ -84,18 +85,18 @@ class Trace:
         """
         subset_trace = self._self_init()
         rec_type_get = utils.string_match(rec_type, self.channel_type[1])
-        if None is clamp_type:
+        if clamp_type is None:
             clamp_type = np.array([True, False])
         clamp_type_get = np.isin(np.array(self.channel_type[3]), np.array(clamp_type))
-        if None is channel_groups:
+        if channel_groups is None:
             channel_groups = np.array(self.channel_type[4])
         channel_groups_get = np.isin(np.array(self.channel_type[4]), np.array(channel_groups))
-        if None is signal_type:
+        if signal_type is None:
             signal_type = ["voltage", "current"]
         signal_type_get = utils.string_match(signal_type, self.channel_type[2])
         if isinstance(channels, int):
             channels = [channels]
-        if None is channels:
+        if channels is None:
             channels = np.array(self.channel_type[0])
         else:
             channels = np.array(channels)
@@ -134,6 +135,34 @@ class Trace:
             subset_trace.channel_type = [[], [], [],[],[]]
         return subset_trace
 
+    def set_time(trace_data: any, align_to_zero: bool = True, cumulative: bool = False, stimulus_interval: float = 0.0, overwrite_time: bool = True) -> any:
+        """
+        Set the time axis for the given trace data.
+
+        Parameters:
+        - trace_data (Trace): The trace data object.
+        - align_to_zero (bool): If True, align the time axis to zero. Default is True.
+        - cumulative (bool): If True, set the time axis to cumulative. Default is False.
+        - stimulus_interval (float): The stimulus interval. Default is 0.0.
+
+        Returns:
+        - Trace or None
+        """
+        tmp_time = deepcopy(trace_data.time)
+        start_time = Quantity(0, "s")
+        for sweep_index, sweep in enumerate(tmp_time):
+            if align_to_zero:
+                start_time = Quantity(np.min(sweep), "s")
+            if cumulative:
+                if sweep_index > 0:
+                    start_time = Quantity(np.min(sweep), "s") - Quantity(np.max(tmp_time[sweep_index-1]), "s") - Quantity(stimulus_interval, "s")
+            tmp_time[sweep_index] -= start_time
+        if overwrite_time:
+            trace_data.time = tmp_time
+            return None
+        else:
+            return tmp_time
+
     def average_trace(
         self,
         channels: any = None,
@@ -154,9 +183,9 @@ class Trace:
         - any: The average trace object.
 
         """
-        if None is channels:
+        if channels is None:
             channels = np.array(self.channel_type[0])
-        if None is signal_type:
+        if signal_type is None:
             signal_type = ["voltage", "current"]
         avg_trace = self.subset(channels, signal_type, rec_type)
         if utils.string_match("current", signal_type).any():
@@ -173,6 +202,8 @@ class Trace:
         color: str = "black",
         alpha: float = 0.5,
         avg_color: str = "red",
+        align_onset: bool = True,
+        show: bool = True
     ):
         """
         Plots the traces for the specified channels.
@@ -188,7 +219,7 @@ class Trace:
             alpha (float, optional): The transparency of the individual traces. Defaults to 0.5.
             avg_color (str, optional): The color of the average trace. Defaults to "red".
         """
-        if None is channels:
+        if channels is None:
             channels = np.array(self.channel_type[0])
         fig, channel_axs = plt.subplots(len(channels), 1, sharex=True)
         if signal_type == "current":
@@ -199,12 +230,19 @@ class Trace:
             trace_select = self.subset(
                 channels=channels, signal_type=signal_type
             ).voltage
+        if trace_select.shape[0] == 0:
+            print("No traces found.")
+            return None
+        if align_onset:
+            time_array = self.set_time(align_to_zero=True, cumulative=False,stimulus_interval=0.0, overwrite_time=False)
+        else:
+            time_array = self.time
         for channel in channels:
             for i in range(0, trace_select.shape[1]):
                 #  if(signal_type == 'current'):
                 channel_axs.plot(
-                    self.time,
-                    trace_select[channel-1,i,:],
+                    time_array[i, :],
+                    trace_select[channel-1, i, :],
                     color=utils.trace_color(traces=trace_select, index=i, color=color),
                     alpha=alpha,
                 )
@@ -213,9 +251,11 @@ class Trace:
                 channels=channels, signal_type=signal_type
             )
             if signal_type == "current":
-                channel_axs.plot(self.time, trace_select.current[0], color=avg_color)
+                channel_axs.plot(time_array[0, :], trace_select.current[0], color=avg_color)
             if signal_type == "voltage":
-                channel_axs.plot(self.time, trace_select.voltage[0], color=avg_color)
+                channel_axs.plot(time_array[0, :], trace_select.voltage[0], color=avg_color)
+        if show:
+            plt.show()
 
 class MetaData:
     """
