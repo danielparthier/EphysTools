@@ -72,23 +72,25 @@ def wcp_trace(trace, file_path):
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.voltage = np.zeros((channel_count[0], segment_len, trace_len))
     trace.current = np.zeros((channel_count[1], segment_len, trace_len))
-    trace.time = data_block.segments[0].analogsignals[0].times
+    trace.time = np.zeros((segment_len, trace_len))
+    #trace.time = data_block.segments[0].analogsignals[0].times
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = channel_information
     trace.channel_type = _type_check(reader)
-    for segment in enumerate(data_block.segments):
+    for index, segment in enumerate(data_block.segments):
         j = 0
-        for voltage_channel in trace.channel_information[segment[0]][0]:
-            trace.voltage[j, segment[0], :] = (
-                segment[1].analogsignals[voltage_channel].magnitude[:, 0]
+        for voltage_channel in trace.channel_information[index][0]:
+            trace.voltage[j, index, :] = (
+                segment.analogsignals[voltage_channel].magnitude[:, 0]
             )
             j += 1
         j = 0
-        for current_channel in trace.channel_information[segment[0]][1]:
-            trace.current[j, segment[0], :] = (
-                segment[1].analogsignals[current_channel].magnitude[:, 0]
+        for current_channel in trace.channel_information[index][1]:
+            trace.current[j, index, :] = (
+                segment.analogsignals[current_channel].magnitude[:, 0]
             )
             j += 1
+        trace.time[index,:] = segment.analogsignals[0].times
 
 
 def _signal_check(data):
