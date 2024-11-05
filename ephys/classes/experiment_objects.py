@@ -138,7 +138,7 @@ class Trace:
             return subset_trace.channel_type
         return subset_trace
 
-    def set_time(trace_data: any,
+    def set_time(self,
                  align_to_zero: bool = True,
                  cumulative: bool = False,
                  stimulus_interval: float = 0.0,
@@ -155,17 +155,19 @@ class Trace:
         Returns:
         - Trace or None
         """
-        tmp_time = deepcopy(trace_data.time)
-        start_time = Quantity(0, "s")
+        tmp_time = deepcopy(self.time)
+        time_unit = tmp_time.units
+        start_time = Quantity(0, time_unit)
+        stimulus_interval = Quantity(stimulus_interval, time_unit)
         for sweep_index, sweep in enumerate(tmp_time):
             if align_to_zero:
-                start_time = Quantity(np.min(sweep), "s")
+                start_time = Quantity(np.min(sweep.magnitude), time_unit)
             if cumulative:
                 if sweep_index > 0:
-                    start_time = Quantity(np.min(sweep), "s") - Quantity(np.max(tmp_time[sweep_index-1]), "s") - Quantity(stimulus_interval, "s")
+                    start_time = Quantity(np.min(sweep.magnitude) - np.max(tmp_time[sweep_index-1].magnitude), time_unit) - stimulus_interval
             tmp_time[sweep_index] -= start_time
         if overwrite_time:
-            trace_data.time = tmp_time
+            self.time = tmp_time
             return None
         else:
             return tmp_time
@@ -359,6 +361,7 @@ class MetaData:
             estimated_exp_date = (
                 time_created if time_created < time_modified else time_modified
             )
+            # NOTE: abf files have date of experiment in the header
             file_list.append(
                 {
                     "data_of_creation": time_created,
@@ -397,7 +400,6 @@ class MetaData:
             utils.string_match(files_to_remove, files_exist)
         ]
 
-
 class ExpData:
     """
     A class representing experimental data.
@@ -422,3 +424,7 @@ class ExpData:
             for file in file_path:
                 self.protocols.append(Trace(file))
         self.meta_data = MetaData(file_path, experimenter)
+    # TODO: function to add different protocols to the same experiment
+    # TODO: get summary outputs for the experiment
+    # TODO: get summary plots for the experiment
+
