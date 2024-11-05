@@ -171,6 +171,19 @@ class Trace:
             return None
         else:
             return tmp_time
+    def rescale_time(self,
+                     time_unit: str = "s") -> None:
+        """
+        Rescale the time axis for the given trace data.
+
+        Parameters:
+        - trace_data (Trace): The trace data object.
+        - time_unit (str): The time unit. Default is "s".
+
+        Returns:
+        - None
+        """
+        self.time = self.time.rescale(time_unit)
 
     def subtract_baseline(self,
                           window: tuple = (0, 0.1),
