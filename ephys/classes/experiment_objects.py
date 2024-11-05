@@ -185,6 +185,7 @@ class Trace:
         """
         self.time = self.time.rescale(time_unit)
 
+
     def subtract_baseline(self,
                           window: tuple = (0, 0.1),
                           channels: any = None,
@@ -302,7 +303,7 @@ class Trace:
                     time_array[i, :],
                     trace_select[channel-1, i, :],
                     color=utils.trace_color(traces=trace_select, index=i, color=color),
-                    alpha=alpha,
+                    alpha=alpha
                 )
         if average:
             trace_select = self.average_trace(
@@ -312,6 +313,7 @@ class Trace:
                 channel_axs.plot(time_array[0, :], trace_select.current[0], color=avg_color)
             if signal_type == "voltage":
                 channel_axs.plot(time_array[0, :], trace_select.voltage[0], color=avg_color)
+        channel_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
         if show:
             plt.show()
 
