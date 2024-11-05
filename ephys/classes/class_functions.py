@@ -92,7 +92,6 @@ def wcp_trace(trace, file_path):
                 segment.analogsignals[current_channel].magnitude[:, 0]
             )
             j += 1
-        # TODO: make time quantity and change downstream code
         trace.time[index,:] = segment.analogsignals[0].times
     trace.time = Quantity(trace.time, units=time_unit)
 
@@ -149,3 +148,16 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
         0.0,
         abs_tol=tol,
     )
+
+def _get_time_index(time: Quantity, time_point: float) -> int:
+    """
+    Get the index of the time point in the given time array.
+
+    Parameters:
+    - time (Quantity): The time array.
+    - time_point (float): The time point to find in the time array.
+
+    Returns:
+    - int: The index of the time point in the time array.
+    """
+    return np.argmin(np.abs(time.magnitude - time_point))
