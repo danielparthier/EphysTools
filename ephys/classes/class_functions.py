@@ -3,6 +3,7 @@ This module provides function to check and import ephys objects and generates me
 """
 from re import findall
 from math import isclose
+from quantities import Quantity
 from numpy.lib.stride_tricks import sliding_window_view
 import neo
 import numpy as np
@@ -77,6 +78,8 @@ def wcp_trace(trace, file_path):
     trace.channel_information = channel_information
     trace.channel_type = _type_check(reader)
     for index, segment in enumerate(data_block.segments):
+        if index == 0:
+            time_unit = segment.analogsignals[0].times.units
         j = 0
         for voltage_channel in trace.channel_information[index][0]:
             trace.voltage[j, index, :] = (
@@ -89,8 +92,13 @@ def wcp_trace(trace, file_path):
                 segment.analogsignals[current_channel].magnitude[:, 0]
             )
             j += 1
+        # TODO: make time quantity and change downstream code
         trace.time[index,:] = segment.analogsignals[0].times
+    trace.time = Quantity(trace.time, units=time_unit)
 
+# TODO: add the function to read ABF files
+# NOTE: abf file does not always save protocol trace - find setting/reason and/or alternative needed
+# NOTE: requires pyabf package - evaluate how often protocol can be read
 
 def _signal_check(data):
     """
