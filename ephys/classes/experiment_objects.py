@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from quantities import Quantity
 from ephys.classes.class_functions import wcp_trace
+from ephys.classes.class_functions import _get_time_index
 from ephys import utils
 
 
@@ -185,7 +186,6 @@ class Trace:
         """
         self.time = self.time.rescale(time_unit)
 
-
     def subtract_baseline(self,
                           window: tuple = (0, 0.1),
                           channels: any = None,
@@ -199,10 +199,8 @@ class Trace:
             trace_copy = self
         subset_channels = self.subset(channels=channels,signal_type=signal_type, rec_type=rec_type, subset_index_only=True)
         trace_copy.set_time(align_to_zero=True, cumulative=False, stimulus_interval=0.0, overwrite_time=True)
-#        window_start_index = np.argmin(np.abs(trace_copy.time[0,:] - Quantity(window[0], 's')))
-#        window_end_index = np.argmin(np.abs(trace_copy.time[0,:] - Quantity(window[1], 's')))
-        window_start_index = np.argmin(np.abs(trace_copy.time[0,:] - window[0]))
-        window_end_index = np.argmin(np.abs(trace_copy.time[0,:] - window[1]))
+        window_start_index = _get_time_index(trace_copy.time[0,:], window[0])
+        window_end_index = _get_time_index(trace_copy.time[0,:], window[1])
         for subset_index, signal_type_subset in enumerate(subset_channels[2]):
             channel_index = subset_channels[4][subset_index]
             if signal_type_subset == "voltage":
