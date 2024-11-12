@@ -62,7 +62,7 @@ def _type_check(data: any) -> dict:
     return {"channel_number": channel_list,
             "array_index": array_index,
             "recording_type": type_out,
-            "recording_configuration": signal_type,
+            "signal_type": signal_type,
             "clamped": clamp_type,
             "channel_grouping": channel_groups,
             "unit": channel_unit}
