@@ -95,7 +95,7 @@ class Trace:
         channel_groups_get = np.isin(np.array(self.channel_type["channel_grouping"]), np.array(channel_groups))
         if signal_type is None:
             signal_type = ["voltage", "current"]
-        signal_type_get = utils.string_match(signal_type, self.channel_type["recording_configuration"])
+        signal_type_get = utils.string_match(signal_type, self.channel_type["signal_type"])
         if isinstance(channels, int):
             channels = [channels]
         if channels is None:
@@ -126,11 +126,11 @@ class Trace:
         else:
             subset_trace.current = np.zeros(self.current.shape)
         if len(combined_index) > 0:
-            recording_configuration =  np.array(self.channel_type["recording_configuration"])[combined_index].tolist()
+            signal_type =  np.array(self.channel_type["signal_type"])[combined_index].tolist()
             voltage_index = 0
             current_index = 0
             array_index = []
-            for type_test in recording_configuration:
+            for type_test in signal_type:
                 if type_test == "voltage":
                     array_index.append(voltage_index)
                     voltage_index += 1
@@ -141,7 +141,7 @@ class Trace:
                 "channel_number": np.array(self.channel_type["channel_number"])[combined_index].tolist(),
                 "array_index": array_index,
                 "recording_type": np.array(self.channel_type["recording_type"])[combined_index].tolist(),
-                "recording_configuration": recording_configuration,
+                "signal_type": signal_type,
                 "clamped": np.array(self.channel_type["clamped"])[combined_index].tolist(),
                 "channel_grouping": np.array(self.channel_type["channel_grouping"])[combined_index].tolist(),
                 "unit": np.array(self.channel_type["unit"])[combined_index].tolist()
@@ -150,7 +150,7 @@ class Trace:
             subset_trace.channel_type = {"channel_number": [],
                                          "array_index": [],
                                          "recording_type": [],
-                                         "recording_configuration": [],
+                                         "signal_type": [],
                                          "clamped": [],
                                          "channel_grouping": [],
                                          "unit": []}
@@ -222,8 +222,8 @@ class Trace:
         trace_copy.set_time(align_to_zero=True, cumulative=False, stimulus_interval=0.0, overwrite_time=True)
         window_start_index = _get_time_index(trace_copy.time[0,:], window[0])
         window_end_index = _get_time_index(trace_copy.time[0,:], window[1])
-        for subset_index, signal_type_subset in enumerate(subset_channels[2]):
-            channel_index = subset_channels[4][subset_index]
+        for subset_index, signal_type_subset in enumerate(subset_channels["signal_type"]):
+            channel_index = subset_channels["array_index"][subset_index]
             if signal_type_subset == "voltage":
                 for sweep_index in range(0, trace_copy.voltage.shape[1]):
                     if median:
@@ -234,9 +234,9 @@ class Trace:
             elif signal_type_subset == "current":
                 for sweep_index in range(0, trace_copy.current.shape[1]):
                     if median:
-                        baseline = np.median(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.median(trace_copy.current[channel_index, sweep_index, window_start_index:window_end_index])
                     else:
-                        baseline = np.mean(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.mean(trace_copy.current[channel_index, sweep_index, window_start_index:window_end_index])
                     trace_copy.current[channel_index, sweep_index, :] -= baseline
         if not overwrite:
             return trace_copy
@@ -255,7 +255,7 @@ class Trace:
         output = np.ndarray((len(window), self.time.shape[0]))
         output = FunctionOutput(function)          
         for i, window_subset in enumerate(window):
-            for subset_index, signal_type_subset in enumerate(subset_channels.channel_type["recording_configuration"]):
+            for subset_index, signal_type_subset in enumerate(subset_channels.channel_type["signal_type"]):
                 # BUG: channel_index is incorrect, has to be added to dictionary and during subset
                 channel_index = subset_channels.channel_type["channel_grouping"][subset_index]
                 output.append(trace=subset_channels, window=window_subset, channels=channel_index, signal_type=signal_type, rec_type=rec_type)
@@ -326,21 +326,11 @@ class Trace:
         """
         if channels is None:
             channels = np.array(self.channel_type["channel_number"])
-        fig, channel_axs = plt.subplots(len(channels), 1, sharex=True)
-        if signal_type is None:
-            #channel_type_subset = self.subset(
-            #    channels=channels
-            #).channel_type
-            #signal_type = channel_type_subset[2][np.array(channel_type_subset[3]) == False]
-            signal_type = "voltage"
-        trace_select = trace_select = self.subset(
+        trace_select = self.subset(
                 channels=channels, signal_type=signal_type
             )
-        if signal_type == "current":
-            trace_signal = trace_select.current
-        if signal_type == "voltage":
-            trace_signal = trace_select.voltage
-        if trace_signal.shape[0] == 0:
+        fig, channel_axs = plt.subplots(len(trace_select.channel_type["channel_number"]), 1, sharex=True)
+        if (trace_select.voltage.shape[0] == 0) and (trace_select.current.shape[0] == 0):
             print("No traces found.")
             return None
         if window != (0, 0):
@@ -350,10 +340,17 @@ class Trace:
         else:
             time_array = self.time
             trace_select.channel_type
-        for index, array_index in enumerate(trace_select.channel_type["channel_number"]):
+        for index, array_index in enumerate(trace_select.channel_type["array_index"]):
+            if trace_select.channel_type["signal_type"][index]=="voltage":
+                trace_signal = trace_select.voltage
+            if trace_select.channel_type["signal_type"][index]=="current":
+                trace_signal = trace_select.current
+            if len(trace_select.channel_type["array_index"]) == 1:
+                tmp_axs = channel_axs
+            else:
+                tmp_axs = channel_axs[index]
             for i in range(0, trace_signal.shape[1]):
-                #  if(signal_type == 'current'):
-                channel_axs[index].plot(
+                tmp_axs.plot(
                     time_array[i, :],
                     trace_signal[array_index, i, :],
                     color=utils.trace_color(traces=trace_signal, index=i, color=color),
@@ -364,13 +361,11 @@ class Trace:
                     channels=channels, signal_type=signal_type
                 )
                 if signal_type == "current":
-                    channel_axs[index].plot(time_array[0, :], trace_select_avg.current[0], color=avg_color)
+                    tmp_axs.plot(time_array[0, :], trace_select_avg.current[0], color=avg_color)
                 if signal_type == "voltage":
-                    channel_axs[index].plot(time_array[0, :], trace_select_avg.voltage[0], color=avg_color)
-            channel_axs[index].set_xlabel("Time (" + time_array.dimensionality.latex + ")")
-       # print(trace_select.channel_type[5])
-            for unit_title in  np.unique(trace_select.channel_type["unit"]):
-                channel_axs[index].set_ylabel(signal_type.title() + " (" + unit_title + ")")
+                    tmp_axs.plot(time_array[0, :], trace_select_avg.voltage[0], color=avg_color)
+            tmp_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
+            tmp_axs.set_ylabel(trace_select.channel_type["signal_type"][index].title() + " (" + trace_select.channel_type["unit"][index] + ")")
         if show:
             plt.show()
 
