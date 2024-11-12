@@ -9,7 +9,7 @@ import neo
 import numpy as np
 
 
-def _type_check(data):
+def _type_check(data: any) -> dict:
     """
     Check the type of data and determine the type of each channel.
 
@@ -28,7 +28,11 @@ def _type_check(data):
     signal_type = []
     clamp_type = []
     channel_groups = []
+    channel_unit = []
+    array_index = []
     channel_index = 0
+    voltage_index = 0
+    current_index = 0
 
     if isinstance(data, neo.io.winwcpio.WinWcpIO):
         Analogsignals = data.read_block().segments[0].analogsignals
@@ -36,19 +40,32 @@ def _type_check(data):
             if len(findall("Vm\(AC\)", i[0])) == 1:
                 type_out.append("field")
                 signal_type.append("voltage")
+                array_index.append(voltage_index)
+                voltage_index += 1
             elif len(findall("Vm", i[0])) == 1:
                 type_out.append("cell")
                 signal_type.append("voltage")
+                array_index.append(voltage_index)
+                voltage_index += 1
             elif len(findall("Im", i[0])) == 1:
                 type_out.append("cell")
                 signal_type.append("current")
+                array_index.append(current_index)
+                current_index += 1
             channel_groups.append(i[7].astype(int).tolist())
             clamp_type.append(
                 _is_clamp(Analogsignals[channel_index].magnitude.squeeze())
             )
             channel_index += 1
             channel_list.append(channel_index)
-    return [channel_list, type_out, signal_type, clamp_type, channel_groups]
+            channel_unit.append(str(i["units"]))
+    return {"channel_number": channel_list,
+            "array_index": array_index,
+            "recording_type": type_out,
+            "recording_configuration": signal_type,
+            "clamped": clamp_type,
+            "channel_grouping": channel_groups,
+            "unit": channel_unit}
 
 
 def wcp_trace(trace, file_path):
@@ -69,7 +86,7 @@ def wcp_trace(trace, file_path):
     data_block = reader.read_block()
     segment_len = len(data_block.segments)
     channel_information = _signal_check(data_block)
-    channel_count = channel_information.max(axis=0)[2:4]
+    channel_count = channel_information[:,2:4].max(axis=0)
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.voltage = np.zeros((channel_count[0], segment_len, trace_len))
     trace.current = np.zeros((channel_count[1], segment_len, trace_len))
@@ -114,6 +131,7 @@ def _signal_check(data):
     for segment in enumerate(data.segments):
         v_count = []
         c_count = []
+        units = []
         for signal_idx in enumerate(segment[1].analogsignals):
             unit_i = str(signal_idx[1].units)
             if "V" in unit_i:
@@ -122,8 +140,9 @@ def _signal_check(data):
                 c_count.append(signal_idx[0])
             else:
                 pass
+            units.append(signal_idx[1].units)
         channel_count.append(
-            [np.array(v_count), np.array(c_count), len(v_count), len(c_count)]
+            [np.array(v_count), np.array(c_count), len(v_count), len(c_count), np.array(units)]
         )
     return np.asarray(channel_count, dtype=object)
 
@@ -149,7 +168,7 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
         abs_tol=tol,
     )
 
-def _get_time_index(time: Quantity, time_point: float) -> int:
+def _get_time_index(time: Quantity, time_point: float) -> any:
     """
     Get the index of the time point in the given time array.
 
@@ -160,4 +179,6 @@ def _get_time_index(time: Quantity, time_point: float) -> int:
     Returns:
     - int: The index of the time point in the time array.
     """
+    if time.magnitude.ndim == 2:
+        return np.argmin(np.abs(time.magnitude - time_point), axis=1)
     return np.argmin(np.abs(time.magnitude - time_point))
