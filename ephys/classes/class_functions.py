@@ -59,13 +59,13 @@ def _type_check(data: any) -> dict:
             channel_index += 1
             channel_list.append(channel_index)
             channel_unit.append(str(i["units"]))
-    return {"channel_number": channel_list,
-            "array_index": array_index,
-            "recording_type": type_out,
-            "signal_type": signal_type,
-            "clamped": clamp_type,
-            "channel_grouping": channel_groups,
-            "unit": channel_unit}
+    return {"channel_number": np.array(channel_list),
+            "array_index": np.array(array_index),
+            "recording_type": np.array(type_out),
+            "signal_type": np.array(signal_type),
+            "clamped": np.array(clamp_type),
+            "channel_grouping": np.array(channel_groups),
+            "unit": np.array(channel_unit)}
 
 
 def wcp_trace(trace, file_path):
@@ -92,19 +92,19 @@ def wcp_trace(trace, file_path):
     trace.current = np.zeros((channel_count[1], segment_len, trace_len))
     trace.time = np.zeros((segment_len, trace_len))
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
-    trace.channel_information = channel_information
+#    trace.channel_information = channel_information
     trace.channel_type = _type_check(reader)
     for index, segment in enumerate(data_block.segments):
         if index == 0:
             time_unit = segment.analogsignals[0].times.units
         j = 0
-        for voltage_channel in trace.channel_information[index][0]:
+        for voltage_channel in channel_information[index][0]:
             trace.voltage[j, index, :] = (
                 segment.analogsignals[voltage_channel].magnitude[:, 0]
             )
             j += 1
         j = 0
-        for current_channel in trace.channel_information[index][1]:
+        for current_channel in channel_information[index][1]:
             trace.current[j, index, :] = (
                 segment.analogsignals[current_channel].magnitude[:, 0]
             )
