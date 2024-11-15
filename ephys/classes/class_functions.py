@@ -8,67 +8,7 @@ from numpy.lib.stride_tricks import sliding_window_view
 import neo
 import numpy as np
 
-
-def _type_check(data: any) -> dict:
-    """
-    Check the type of data and determine the type of each channel.
-
-    Parameters:
-    - data: The data to be checked.
-
-    Returns:
-    - A list containing three lists: channel_list, type_out, and signal_type.
-      - channel_list: A list of channel indices.
-      - type_out: A list of channel types (either "field" or "cell").
-      - signal_type: A list of signal_type types (either "voltage" or "current").
-    """
-
-    type_out = []
-    channel_list = []
-    signal_type = []
-    clamp_type = []
-    channel_groups = []
-    channel_unit = []
-    array_index = []
-    channel_index = 0
-    voltage_index = 0
-    current_index = 0
-
-    if isinstance(data, neo.io.winwcpio.WinWcpIO):
-        Analogsignals = data.read_block().segments[0].analogsignals
-        for i in data.header["signal_channels"]:
-            if len(findall("Vm\(AC\)", i[0])) == 1:
-                type_out.append("field")
-                signal_type.append("voltage")
-                array_index.append(voltage_index)
-                voltage_index += 1
-            elif len(findall("Vm", i[0])) == 1:
-                type_out.append("cell")
-                signal_type.append("voltage")
-                array_index.append(voltage_index)
-                voltage_index += 1
-            elif len(findall("Im", i[0])) == 1:
-                type_out.append("cell")
-                signal_type.append("current")
-                array_index.append(current_index)
-                current_index += 1
-            channel_groups.append(i[7].astype(int).tolist())
-            clamp_type.append(
-                _is_clamp(Analogsignals[channel_index].magnitude.squeeze())
-            )
-            channel_index += 1
-            channel_list.append(channel_index)
-            channel_unit.append(str(i["units"]))
-    return {"channel_number": np.array(channel_list),
-            "array_index": np.array(array_index),
-            "recording_type": np.array(type_out),
-            "signal_type": np.array(signal_type),
-            "clamped": np.array(clamp_type),
-            "channel_grouping": np.array(channel_groups),
-            "unit": np.array(channel_unit)}
-
-
-def wcp_trace(trace, file_path):
+def wcp_trace(trace, file_path: str) -> None:
     """
     Reads data from a WinWcp file and populates the given `trace` object with the data.
 
@@ -82,29 +22,32 @@ def wcp_trace(trace, file_path):
     Raises:
         None
     """
+    import ephys.classes.experiment_objects as ephys_class
     reader = neo.WinWcpIO(file_path)
     data_block = reader.read_block()
-    segment_len = len(data_block.segments)
-    channel_information = _signal_check(data_block)
-    channel_count = channel_information[:,2:4].max(axis=0)
+    segment_len = reader.segment_count(0)
     trace_len = len(data_block.segments[0].analogsignals[0])
-    trace.voltage = np.zeros((channel_count[0], segment_len, trace_len))
-    trace.current = np.zeros((channel_count[1], segment_len, trace_len))
-    trace.time = np.zeros((segment_len, trace_len))
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
-#    trace.channel_information = channel_information
-    trace.channel_type = _type_check(reader)
+    trace.channel_information = ephys_class.ChannelInformation(reader)
+    channel_count = trace.channel_information.count()
+    trace.voltage = np.zeros((channel_count["signal_type"]["voltage"],
+                              segment_len, trace_len))
+    trace.current = np.zeros((channel_count["signal_type"]["current"],
+                              segment_len, trace_len))
+    trace.time = np.zeros((segment_len, trace_len))
+    voltage_channels = np.where(trace.channel_information.signal_type == "voltage")[0]
+    current_channels = np.where(trace.channel_information.signal_type == "current")[0]
     for index, segment in enumerate(data_block.segments):
         if index == 0:
             time_unit = segment.analogsignals[0].times.units
         j = 0
-        for voltage_channel in channel_information[index][0]:
+        for voltage_channel in voltage_channels:
             trace.voltage[j, index, :] = (
                 segment.analogsignals[voltage_channel].magnitude[:, 0]
             )
             j += 1
         j = 0
-        for current_channel in channel_information[index][1]:
+        for current_channel in current_channels:
             trace.current[j, index, :] = (
                 segment.analogsignals[current_channel].magnitude[:, 0]
             )
