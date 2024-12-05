@@ -3,9 +3,9 @@ This module provides classes for representing experimental data and metadata.
 """
 import os
 import time
-import neo
 from copy import deepcopy
 from re import findall
+import neo
 import numpy as np
 import matplotlib.pyplot as plt
 from quantities import Quantity
@@ -14,7 +14,39 @@ from ephys.classes.class_functions import _get_time_index
 from ephys.classes.class_functions import _is_clamp
 from ephys import utils
 
+
 class ChannelInformation:
+    """
+    A class to extract and store channel information from electrophysiological data.
+
+    Attributes:
+    -----------
+    channel_number : np.ndarray or None
+        Array of channel numbers.
+    array_index : np.ndarray or None
+        Array of array indices.
+    recording_type : np.ndarray or None
+        Array of recording types (e.g., 'field', 'cell').
+    signal_type : np.ndarray or None
+        Array of signal types (e.g., 'voltage', 'current').
+    clamped : np.ndarray or None
+        Array indicating the clamp type.
+    channel_grouping : np.ndarray or None
+        Array of channel groupings.
+    unit : np.ndarray or None
+        Array of units for each channel.
+
+    Methods:
+    --------
+    __init__(data: any) -> dict:
+        Initializes the ChannelInformation object with data from a neo.io object.
+    
+    to_dict() -> dict:
+        Converts the channel information to a dictionary format.
+    
+    count() -> dict:
+        Counts the occurrences of unique values in the channel information attributes.
+    """
     def __init__(self, data: any) -> dict:
         type_out = []
         channel_list = []
@@ -28,33 +60,33 @@ class ChannelInformation:
         current_index = 0
 
         if isinstance(data, neo.io.winwcpio.WinWcpIO):
-            Analogsignals = data.read_block().segments[0].analogsignals
+            analogsignals = data.read_block().segments[0].analogsignals
             for i in data.header["signal_channels"]:
-                if len(findall("Vm\(AC\)", i[0])) == 1:
+                if len(findall(r"Vm\(AC\)", i[0])) == 1:
                     type_out.append("field")
                     signal_type.append("voltage")
                     array_index.append(voltage_index)
                     voltage_index += 1
-                elif len(findall("Vm", i[0])) == 1:
+                elif len(findall(r"Vm", i[0])) == 1:
                     type_out.append("cell")
                     signal_type.append("voltage")
                     array_index.append(voltage_index)
                     voltage_index += 1
-                elif len(findall("Im", i[0])) == 1:
+                elif len(findall(r"Im", i[0])) == 1:
                     type_out.append("cell")
                     signal_type.append("current")
                     array_index.append(current_index)
                     current_index += 1
                 channel_groups.append(i["stream_id"].astype(int).tolist())
                 clamp_type.append(
-                    _is_clamp(Analogsignals[channel_index].magnitude.squeeze())
+                    _is_clamp(analogsignals[channel_index].magnitude.squeeze())
                 )
                 channel_index += 1
                 channel_list.append(channel_index)
                 channel_unit.append(str(i["units"]))
-        elif isinstance(data, neo.io.abfio.ABFIO):
+        elif isinstance(data, neo.io.axonio.AxonIO):
             pass
-        elif isinstance(data, neo.io.igorproio.IgorProIO):
+        elif isinstance(data, neo.io.igorproio.IgorIO):
             pass
         if len(channel_list) > 0:
             self.channel_number = np.array(channel_list)
@@ -74,7 +106,20 @@ class ChannelInformation:
             self.unit = None
             print("No channel information found.")
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        """
+        Return the channel information as dictionary.
+
+        Returns:
+            dict: A dictionary containing the following key-value pairs:
+                - "channel_number" (int): The channel number.
+                - "array_index" (int): The index of the array.
+                - "recording_type" (str): The type of recording.
+                - "signal_type" (str): The type of signal.
+                - "clamped" (bool): Indicates if the signal is clamped.
+                - "channel_grouping" (str): The grouping of the channel.
+                - "unit" (str): The unit of measurement.
+        """
         return {
             "channel_number": self.channel_number,
             "array_index": self.array_index,
@@ -84,13 +129,29 @@ class ChannelInformation:
             "channel_grouping": self.channel_grouping,
             "unit": self.unit,
         }
-    
-    def count(self) -> None:
+
+    def count(self) -> dict:
+        """
+        Return the count of unique values in the channel information attributes.
+        
+        Returns:
+            dict: A dictionary containing the attributes and their counts.
+                - "signal_type" (dict): The count of unique signal types.
+                - "array_index" (dict): The count of unique array indices.
+                - "recording_type" (dict): The count of unique recording types.
+                - "clamped" (dict): The count of unique clamp types.
+                - "channel_grouping" (dict): The count of unique channel groupings.
+                - "unit" (dict): The count of unique units.
+        """
         signal_type, signal_type_count = np.unique(self.signal_type, return_counts=True)
         array_index, array_index_count = np.unique(self.array_index, return_counts=True)
-        recording_type, recording_type_count = np.unique(self.recording_type, return_counts=True)
+        recording_type, recording_type_count = np.unique(
+            self.recording_type, return_counts=True
+        )
         clamped, clamped_count = np.unique(self.clamped, return_counts=True)
-        channel_grouping, channel_grouping_count = np.unique(self.channel_grouping, return_counts=True)
+        channel_grouping, channel_grouping_count = np.unique(
+            self.channel_grouping, return_counts=True
+        )
         unit, unit_idx = np.unique(self.unit, return_counts=True)
         return {
             "signal_type": dict(zip(signal_type, signal_type_count)),
@@ -147,6 +208,9 @@ class Trace:
             print("File type not supported")
 
     def copy(self) -> any:
+        """
+        Returns a deep copy of the Trace object.
+        """
         return deepcopy(self)
 
     def subset(
@@ -173,16 +237,22 @@ class Trace:
 
         """
         subset_trace = self.copy()
-        rec_type_get = utils.string_match(rec_type, self.channel_information.recording_type)
+        rec_type_get = utils.string_match(
+            rec_type, self.channel_information.recording_type
+        )
         if clamp_type is None:
             clamp_type = np.array([True, False])
         clamp_type_get = np.isin(self.channel_information.clamped, np.array(clamp_type))
         if channel_groups is None:
             channel_groups = self.channel_information.channel_grouping
-        channel_groups_get = np.isin(self.channel_information.channel_grouping, channel_groups)
+        channel_groups_get = np.isin(
+            self.channel_information.channel_grouping, channel_groups
+        )
         if signal_type is None:
             signal_type = np.array(["voltage", "current"])
-        signal_type_get = utils.string_match(signal_type, self.channel_information.signal_type)
+        signal_type_get = utils.string_match(
+            signal_type, self.channel_information.signal_type
+        )
         if isinstance(channels, int):
             channels = np.array([channels])
         if channels is None:
@@ -191,15 +261,21 @@ class Trace:
             channels = np.array(channels)
         channels_get = np.isin(self.channel_information.channel_number, channels)
         # TODO: switch to boolean indexing and np.array inside dict as default
-        combined_index = np.logical_and.reduce((
-            rec_type_get,
-            signal_type_get,
-            channels_get,
-            clamp_type_get,
-            channel_groups_get
-            ))
-        voltage_selection = self.channel_information.array_index[(self.channel_information.signal_type=="voltage") & combined_index]
-        current_selection = self.channel_information.array_index[(self.channel_information.signal_type=="current") & combined_index]
+        combined_index = np.logical_and.reduce(
+            (
+                rec_type_get,
+                signal_type_get,
+                channels_get,
+                clamp_type_get,
+                channel_groups_get,
+            )
+        )
+        voltage_selection = self.channel_information.array_index[
+            (self.channel_information.signal_type == "voltage") & combined_index
+        ]
+        current_selection = self.channel_information.array_index[
+            (self.channel_information.signal_type == "current") & combined_index
+        ]
         if len(voltage_selection) > 0:
             subset_trace.voltage = self.voltage[voltage_selection]
         else:
@@ -209,7 +285,7 @@ class Trace:
         else:
             subset_trace.current = np.zeros(self.current.shape)
         if len(combined_index) > 0:
-            signal_type =  self.channel_information.signal_type[combined_index]
+            signal_type = self.channel_information.signal_type[combined_index]
             voltage_index = 0
             current_index = 0
             array_index = []
@@ -220,13 +296,25 @@ class Trace:
                 elif type_test == "current":
                     array_index.append(current_index)
                     current_index += 1
-            subset_trace.channel_information.channel_number = self.channel_information.channel_number[combined_index]
-            subset_trace.channel_information.array_index = self.channel_information.array_index[combined_index]
-            subset_trace.channel_information.recording_type = self.channel_information.recording_type[combined_index]
+            subset_trace.channel_information.channel_number = (
+                self.channel_information.channel_number[combined_index]
+            )
+            subset_trace.channel_information.array_index = (
+                self.channel_information.array_index[combined_index]
+            )
+            subset_trace.channel_information.recording_type = (
+                self.channel_information.recording_type[combined_index]
+            )
             subset_trace.channel_information.signal_type = signal_type
-            subset_trace.channel_information.clamped = self.channel_information.clamped[combined_index]
-            subset_trace.channel_information.channel_grouping = self.channel_information.channel_grouping[combined_index]
-            subset_trace.channel_information.unit = self.channel_information.unit[combined_index]
+            subset_trace.channel_information.clamped = self.channel_information.clamped[
+                combined_index
+            ]
+            subset_trace.channel_information.channel_grouping = (
+                self.channel_information.channel_grouping[combined_index]
+            )
+            subset_trace.channel_information.unit = self.channel_information.unit[
+                combined_index
+            ]
         else:
             subset_trace.channel_information.channel_number = np.array([])
             subset_trace.channel_information.array_index = np.array([])
@@ -238,12 +326,14 @@ class Trace:
         if subset_index_only:
             return subset_trace.channel_information
         return subset_trace
-    
-    def set_time(self,
-                 align_to_zero: bool = True,
-                 cumulative: bool = False,
-                 stimulus_interval: float = 0.0,
-                 overwrite_time: bool = True) -> any:
+
+    def set_time(
+        self,
+        align_to_zero: bool = True,
+        cumulative: bool = False,
+        stimulus_interval: float = 0.0,
+        overwrite_time: bool = True,
+    ) -> any:
         """
         Set the time axis for the given trace data.
 
@@ -260,22 +350,29 @@ class Trace:
         time_unit = tmp_time.units
         start_time = Quantity(0, time_unit)
         stimulus_interval = Quantity(stimulus_interval, time_unit)
-        sampling_interval = (1/self.sampling_rate).rescale(time_unit)
-        
+        sampling_interval = (1 / self.sampling_rate).rescale(time_unit)
+
         for sweep_index, sweep in enumerate(tmp_time):
             if align_to_zero:
                 start_time = Quantity(np.min(sweep.magnitude), time_unit)
             if cumulative:
                 if sweep_index > 0:
-                    start_time = Quantity(np.min(sweep.magnitude) - np.max(tmp_time[sweep_index-1].magnitude), time_unit) - stimulus_interval - sampling_interval
+                    start_time = (
+                        Quantity(
+                            np.min(sweep.magnitude)
+                            - np.max(tmp_time[sweep_index - 1].magnitude),
+                            time_unit,
+                        )
+                        - stimulus_interval
+                        - sampling_interval
+                    )
             tmp_time[sweep_index] -= start_time
         if overwrite_time:
             self.time = tmp_time
             return None
-        else:
-            return tmp_time
-    def rescale_time(self,
-                     time_unit: str = "s") -> None:
+        return tmp_time
+
+    def rescale_time(self, time_unit: str = "s") -> None:
         """
         Rescale the time axis for the given trace data.
 
@@ -288,68 +385,181 @@ class Trace:
         """
         self.time = self.time.rescale(time_unit)
 
-    def subtract_baseline(self,
-                          window: tuple = (0, 0.1),
-                          channels: any = None,
-                          signal_type: any = None,
-                          rec_type: str = "",
-                          median: bool = False,
-                          overwrite: bool = False) -> any:
+    def subtract_baseline(
+        self,
+        window: tuple = (0, 0.1),
+        channels: any = None,
+        signal_type: any = None,
+        rec_type: str = "",
+        median: bool = False,
+        overwrite: bool = False,
+    ) -> any:
+        """
+        Subtracts the baseline from the signal within a specified time window.
+
+        Parameters:
+        self : object
+            The instance of the class containing the signal data.
+        window : tuple, optional
+            A tuple specifying the start and end of the time window for baseline 
+            calculation (default is (0, 0.1)).
+        channels : any, optional
+            The channels to be processed. If None, all channels are processed 
+            (default is None).
+        signal_type : any, optional
+            The type of signal to be processed (e.g., 'voltage' or 'current'). 
+            If None, all signal types are processed (default is None).
+        rec_type : str, optional
+            The type of recording (default is an empty string).
+        median : bool, optional
+            If True, the median value within the window is used as the baseline. 
+            If False, the mean value is used (default is False).
+        overwrite : bool, optional
+            If True, the baseline-subtracted data will overwrite the original data. 
+            If False, a copy of the data with the baseline subtracted will be 
+            returned (default is False).
+
+        Returns:
+        any
+            If overwrite is False, returns a copy of the data with the baseline 
+            subtracted. If overwrite is True, returns None.
+        """
         if not overwrite:
             trace_copy = deepcopy(self)
         else:
             trace_copy = self
-        subset_channels = self.subset(channels=channels,signal_type=signal_type, rec_type=rec_type, subset_index_only=True)
-        trace_copy.set_time(align_to_zero=True, cumulative=False, stimulus_interval=0.0, overwrite_time=True)
-        window_start_index = _get_time_index(trace_copy.time[0,:], window[0])
-        window_end_index = _get_time_index(trace_copy.time[0,:], window[1])
-        for subset_index, signal_type_subset in enumerate(subset_channels["signal_type"]):
-            channel_index = subset_channels["array_index"][subset_index]
+        subset_channels = self.subset(
+            channels=channels,
+            signal_type=signal_type,
+            rec_type=rec_type,
+            subset_index_only=True,
+        )
+        trace_copy.set_time(
+            align_to_zero=True,
+            cumulative=False,
+            stimulus_interval=0.0,
+            overwrite_time=True,
+        )
+        window_start_index = _get_time_index(trace_copy.time[0, :], window[0])
+        window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
+        for subset_index, signal_type_subset in enumerate(
+            subset_channels.signal_type
+        ):
+            channel_index = subset_channels.array_index[subset_index]
             if signal_type_subset == "voltage":
                 for sweep_index in range(0, trace_copy.voltage.shape[1]):
                     if median:
-                        baseline = np.median(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.median(
+                            trace_copy.voltage[
+                                channel_index,
+                                sweep_index,
+                                window_start_index:window_end_index,
+                            ]
+                        )
                     else:
-                        baseline = np.mean(trace_copy.voltage[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.mean(
+                            trace_copy.voltage[
+                                channel_index,
+                                sweep_index,
+                                window_start_index:window_end_index,
+                            ]
+                        )
                     trace_copy.voltage[channel_index, sweep_index, :] -= baseline
             elif signal_type_subset == "current":
                 for sweep_index in range(0, trace_copy.current.shape[1]):
                     if median:
-                        baseline = np.median(trace_copy.current[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.median(
+                            trace_copy.current[
+                                channel_index,
+                                sweep_index,
+                                window_start_index:window_end_index,
+                            ]
+                        )
                     else:
-                        baseline = np.mean(trace_copy.current[channel_index, sweep_index, window_start_index:window_end_index])
+                        baseline = np.mean(
+                            trace_copy.current[
+                                channel_index,
+                                sweep_index,
+                                window_start_index:window_end_index,
+                            ]
+                        )
                     trace_copy.current[channel_index, sweep_index, :] -= baseline
         if not overwrite:
             return trace_copy
+        return None
 
-    def window_function(self,
-                        window: list = [(0, 0)],
-                        channels: any = None,
-                        signal_type: any = None,
-                        rec_type: str = "",
-                        function: str = "mean",
-                        return_output: bool = False,
-                        plot=False) -> any:
-        if not function in ["mean", "median", "max", "min", "min_avg"]:
+    def window_function(
+        self,
+        window: list = [(0, 0)],
+        channels: any = None,
+        signal_type: any = None,
+        rec_type: str = "",
+        function: str = "mean",
+        label: str = "",
+        return_output: bool = False,
+        plot=False,
+    ) -> any:
+        """
+        Apply a specified function to a subset of channels within given time windows.
+
+        Parameters:
+        -----------
+        window : list, optional
+            List of tuples specifying the start and end of each window. Default is [(0, 0)].
+        channels : any, optional
+            Channels to be included in the subset. Default is None.
+        signal_type : any, optional
+            Type of signal to be included in the subset. Default is None.
+        rec_type : str, optional
+            Type of recording to be included in the subset. Default is an empty string.
+        function : str, optional
+            Function to apply to the data. Supported functions are "mean", "median", "max", "min", "min_avg". Default is "mean".
+        return_output : bool, optional
+            If True, the function returns the output. Default is False.
+        plot : bool, optional
+            If True, the function plots the output. Default is False.
+
+        Returns:
+        --------
+        any
+            The output of the applied function if return_output is True, otherwise None.
+
+        Notes:
+        ------
+        The function updates the `window_summary` attribute of the class with the output.
+        """
+        if function not in ["mean", "median", "max", "min", "min_avg"]:
             print("Function not supported")
             return None
-        subset_channels = self.subset(channels=channels, signal_type=signal_type, rec_type=rec_type)
+        subset_channels = self.subset(
+            channels=channels, signal_type=signal_type, rec_type=rec_type
+        )
         output = np.ndarray((len(window), self.time.shape[0]))
         output = FunctionOutput(function)
-        for channel_index, channel in enumerate(subset_channels.channel_information.channel_number):
+        for channel_index, channel in enumerate(
+            subset_channels.channel_information.channel_number
+        ):
             for window_index, window_subset in enumerate(window):
-                output.append(trace=subset_channels, window=window_subset,
-                              channels=channel,
-                              signal_type=subset_channels.channel_information.signal_type[channel_index],
-                              rec_type=subset_channels.channel_information.recording_type[channel_index])
+                output.append(
+                    trace=subset_channels,
+                    window=window_subset,
+                    channels=channel,
+                    signal_type=subset_channels.channel_information.signal_type[
+                        channel_index
+                    ],
+                    rec_type=subset_channels.channel_information.recording_type[
+                        channel_index
+                    ],
+                    label=label
+                )
         if plot:
-            subset_channels.plot(show=True, window_data=output)
+            subset_channels.plot(trace=subset_channels, show=True, window_data=output)
         if return_output:
             return output
         try:
-            self.window_summary = self.window_summary.merge(output)
+            self.window_summary.merge(output)
         except:
-                setattr(self, "window_summary", output)
+            setattr(self, "window_summary", output)
 
     def average_trace(
         self,
@@ -393,7 +603,7 @@ class Trace:
         align_onset: bool = True,
         window: tuple = (0, 0),
         show: bool = True,
-        return_fig: bool = False
+        return_fig: bool = False,
     ):
         """
         Plots the traces for the specified channels.
@@ -411,24 +621,33 @@ class Trace:
         """
         if channels is None:
             channels = self.channel_information.channel_number
-        trace_select = self.subset(
-                channels=channels, signal_type=signal_type
-            )
-        fig, channel_axs = plt.subplots(len(trace_select.channel_information.channel_number), 1, sharex=True)
-        if (trace_select.voltage.shape[0] == 0) and (trace_select.current.shape[0] == 0):
+        trace_select = self.subset(channels=channels, signal_type=signal_type)
+        fig, channel_axs = plt.subplots(
+            len(trace_select.channel_information.channel_number), 1, sharex=True
+        )
+        if (trace_select.voltage.shape[0] == 0) and (
+            trace_select.current.shape[0] == 0
+        ):
             print("No traces found.")
             return None
         if window != (0, 0):
-            plt.axvspan(xmin=window[0], xmax=window[1], color='gray', alpha=0.1)
+            plt.axvspan(xmin=window[0], xmax=window[1], color="gray", alpha=0.1)
         if align_onset:
-            time_array = self.set_time(align_to_zero=True, cumulative=False,stimulus_interval=0.0, overwrite_time=False)
+            time_array = self.set_time(
+                align_to_zero=True,
+                cumulative=False,
+                stimulus_interval=0.0,
+                overwrite_time=False,
+            )
         else:
             time_array = self.time
-        for index, array_index in enumerate(trace_select.channel_information.array_index):
+        for index, array_index in enumerate(
+            trace_select.channel_information.array_index
+        ):
             # NOTE: add here all the windows for the channel if window is existing
-            if trace_select.channel_information.signal_type[index]=="voltage":
+            if trace_select.channel_information.signal_type[index] == "voltage":
                 trace_signal = trace_select.voltage
-            if trace_select.channel_information.signal_type[index]=="current":
+            if trace_select.channel_information.signal_type[index] == "current":
                 trace_signal = trace_select.current
             if len(trace_select.channel_information.array_index) == 1:
                 tmp_axs = channel_axs
@@ -439,22 +658,35 @@ class Trace:
                     time_array[i, :],
                     trace_signal[array_index, i, :],
                     color=utils.trace_color(traces=trace_signal, index=i, color=color),
-                    alpha=alpha
+                    alpha=alpha,
                 )
             if average:
-                trace_select_avg = self.average_trace(channels=trace_select.channel_information.channel_number[index], signal_type=trace_select.channel_information.signal_type[index])
-                if trace_select.channel_information.signal_type[index]=="voltage":
-                    tmp_axs.plot(time_array[0, :], trace_select_avg.voltage[0], color=avg_color)
-                if trace_select.channel_information.signal_type[index]=="current":
-                    tmp_axs.plot(time_array[0, :], trace_select_avg.current[0], color=avg_color)
+                trace_select_avg = self.average_trace(
+                    channels=trace_select.channel_information.channel_number[index],
+                    signal_type=trace_select.channel_information.signal_type[index],
+                )
+                if trace_select.channel_information.signal_type[index] == "voltage":
+                    tmp_axs.plot(
+                        time_array[0, :], trace_select_avg.voltage[0], color=avg_color
+                    )
+                if trace_select.channel_information.signal_type[index] == "current":
+                    tmp_axs.plot(
+                        time_array[0, :], trace_select_avg.current[0], color=avg_color
+                    )
             tmp_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
-            tmp_axs.set_ylabel(trace_select.channel_information.signal_type[index].title() + " (" + trace_select.channel_information.unit[index] + ")")
+            tmp_axs.set_ylabel(
+                trace_select.channel_information.signal_type[index].title()
+                + " ("
+                + trace_select.channel_information.unit[index]
+                + ")"
+            )
         if return_fig:
-                fig_out = deepcopy(fig)
+            fig_out = deepcopy(fig)
         if show:
             fig.show()
         if return_fig:
             return fig_out
+
     def plot_summary(self):
         try:
             self.window_summary.plot(self, show=True)
@@ -462,28 +694,39 @@ class Trace:
             print("No summary data found")
             return None
 
+
 class FunctionOutput:
-    def __init__(self,
-                 function_name: str) -> None:
+    def __init__(self, function_name: str) -> None:
         self.function_name = function_name
         self.measurements = np.array([])
         self.location = np.array([])
         self.sweep = np.array([])
         self.channel = np.array([])
         self.signal_type = np.array([])
-        self.window = np.array([])
-    def append(self,
-               trace: Trace,
-               window: tuple,
-               channels: any = None,
-               signal_type: any = None,
-               rec_type: str = "",
-               avg_window_ms: float = 1.0) -> None:
-        trace_subset = trace.subset(channels=channels, signal_type=signal_type, rec_type=rec_type)
-        for channel_index, channel in enumerate(trace_subset.channel_information.channel_number):
+        self.window = np.ndarray(dtype=object, shape=(0, 2))
+        self.label = np.array([])
+
+    def append(
+        self,
+        trace: Trace,
+        window: tuple,
+        channels: any = None,
+        signal_type: any = None,
+        rec_type: str = "",
+        avg_window_ms: float = 1.0,
+        label: str = ""
+    ) -> None:
+        trace_subset = trace.subset(
+            channels=channels, signal_type=signal_type, rec_type=rec_type
+        )
+        for channel_index, channel in enumerate(
+            trace_subset.channel_information.channel_number
+        ):
             array_index = trace_subset.channel_information.array_index[channel_index]
             time_window_size = Quantity(avg_window_ms, "ms")
-            channel_signal_type = trace_subset.channel_information.signal_type[channel_index]
+            channel_signal_type = trace_subset.channel_information.signal_type[
+                channel_index
+            ]
             window_start_index = _get_time_index(trace_subset.time, window[0])
             window_end_index = _get_time_index(trace_subset.time, window[1])
             for sweep_index in range(0, trace_subset.time.shape[0]):
@@ -500,34 +743,152 @@ class FunctionOutput:
                     print("Signal type not found")
                     return None
                 if self.function_name == "mean":
-                        self.measurements = np.append(self.measurements, np.mean(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]]))
-                        self.location = np.append(self.location, np.mean(window))
+                    self.measurements = np.append(
+                        self.measurements,
+                        np.mean(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
+                            ]
+                        ),
+                    )
+                    self.location = np.append(self.location, np.mean(window))
                 elif self.function_name == "median":
-                        self.measurements = np.append(self.measurements, np.median(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]]))
-                        self.location = np.append(self.location, np.mean(window))
+                    self.measurements = np.append(
+                        self.measurements,
+                        np.median(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
+                            ]
+                        ),
+                    )
+                    self.location = np.append(self.location, np.mean(window))
                 elif self.function_name == "max":
-                        self.measurements = np.append(self.measurements, np.max(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]]))
-                        self.location = np.append(self.location, trace_subset.time[sweep_index,np.argmin(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]])+window_start_index[sweep_index]])
+                    self.measurements = np.append(
+                        self.measurements,
+                        np.max(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
+                            ]
+                        ),
+                    )
+                    self.location = np.append(
+                        self.location,
+                        trace_subset.time[
+                            sweep_index,
+                            np.argmin(
+                                trace_array[
+                                    array_index,
+                                    sweep_index,
+                                    window_start_index[sweep_index] : window_end_index[
+                                        sweep_index
+                                    ],
+                                ]
+                            )
+                            + window_start_index[sweep_index],
+                        ],
+                    )
                 elif self.function_name == "min":
-                        self.measurements = np.append(self.measurements, np.min(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]]))
-                        self.location = np.append(self.location, trace_subset.time[sweep_index,np.argmin(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]])+window_start_index[sweep_index]])
+                    self.measurements = np.append(
+                        self.measurements,
+                        np.min(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
+                            ]
+                        ),
+                    )
+                    self.location = np.append(
+                        self.location,
+                        trace_subset.time[
+                            sweep_index,
+                            np.argmin(
+                                trace_array[
+                                    array_index,
+                                    sweep_index,
+                                    window_start_index[sweep_index] : window_end_index[
+                                        sweep_index
+                                    ],
+                                ]
+                            )
+                            + window_start_index[sweep_index],
+                        ],
+                    )
                 elif self.function_name == "min_avg":
-                        min_time = trace_subset.time[:,sweep_index,np.argmin(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]])+window_start_index[sweep_index]]
-                        window_start_index = _get_time_index(trace_subset.time[sweep_index,:], (min_time-time_window_size).magnitude)
-                        window_end_index = _get_time_index(trace_subset.time[sweep_index,:], (min_time+time_window_size).magnitude)
-                        self.location = np.append(self.location, min_time)
-                        self.measurements = np.append(self.measurements, np.mean(trace_array[array_index,sweep_index,window_start_index[sweep_index]:window_end_index[sweep_index]]))
-                self.sweep = np.append(self.sweep, sweep_index+1)
-                self.window = np.append(self.window, (window))
-                self.signal_type = np.append(self.signal_type,channel_signal_type)
+                    min_time = trace_subset.time[
+                        sweep_index,
+                        np.argmin(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
+                            ]
+                        )
+                        + window_start_index[sweep_index],
+                    ]
+                    window_start_index[sweep_index] = _get_time_index(
+                        trace_subset.time[sweep_index, :],
+                        Quantity(min_time - time_window_size, trace_subset.time.units).magnitude
+                    )
+                    window_end_index[sweep_index] = _get_time_index(
+                        trace_subset.time[sweep_index, :],
+                        Quantity(min_time + time_window_size, trace_subset.time.units).magnitude
+                    )
+                    self.location = np.append(self.location, min_time)
+                    self.measurements = np.append(
+                        self.measurements,
+                        np.mean(
+                            trace_array[
+                                array_index,
+                                sweep_index,
+                                window_start_index[sweep_index] : window_end_index[sweep_index]
+                            ]
+                        ),
+                    )
+                self.sweep = np.append(self.sweep, sweep_index + 1)
+                self.window = np.append(self.window, [window], axis=0)
+                self.signal_type = np.append(self.signal_type, channel_signal_type)
                 self.channel = np.append(self.channel, channel)
-    def merge(self, window_summary, remove_duplicates=True) -> None:
+                self.label = np.append(self.label, label)
+
+    def merge(self, window_summary, remove_duplicates=False) -> None:
+        """
+        Merges the measurements, location, sweep, window, signal_type, and channel attributes 
+        from the given window_summary object into the current object. Optionally removes duplicates 
+        from these attributes after merging.
+
+        Args:
+            window_summary (object): An object containing measurements, location, sweep, window, 
+                         signal_type, and channel attributes to be merged.
+            remove_duplicates (bool, optional): If True, removes duplicate entries from the merged 
+                            attributes. Defaults to True.
+
+        Returns:
+            None
+        """
         self.measurements = np.append(self.measurements, window_summary.measurements)
         self.location = np.append(self.location, window_summary.location)
         self.sweep = np.append(self.sweep, window_summary.sweep)
         self.window = np.append(self.window, window_summary.window)
         self.signal_type = np.append(self.signal_type, window_summary.signal_type)
         self.channel = np.append(self.channel, window_summary.channel)
+        self.label = np.append(self.label, window_summary.label)
         if remove_duplicates:
             np.unique(self.measurements)
             self.measurements = np.unique(self.measurements)
@@ -536,11 +897,45 @@ class FunctionOutput:
             self.window = np.unique(self.window)
             self.signal_type = np.unique(self.signal_type)
             self.channel = np.unique(self.channel)
-    def plot(self, trace: Trace = None, show: bool = True) -> None:
+            self.label = np.unique(self.label)
+
+    def plot(self, trace: Trace = None, show: bool = True, summary_only=True) -> None:
+        """
+        Plots the trace and/or summary measurements.
+
+        Parameters:
+        trace (Trace, optional): The trace object to be plotted. If None, only the summary measurements are plotted. Default is None.
+        show (bool, optional): If True, the plot will be displayed. Default is True.
+        summary_only (bool, optional): If True, only the summary measurements will be plotted. Default is True.
+
+        Returns:
+        None
+        """
         if trace is not None:
             self.channel = np.unique(np.array(self.channel))
-            trace_select = trace.subset(channels=self.channel, signal_type=self.signal_type)
+            trace_select = trace.subset(
+                channels=self.channel, signal_type=self.signal_type
+            )
+            trace_select.plot(show=False)
+        # TODO: make sure to plot dots on right channel
+        if summary_only:
+            plt.plot(self.location, self.measurements, "o")
+        if show:
+            plt.show()
+
     def to_dict(self):
+        """
+        Convert the experiment object to a dictionary representation.
+
+        Returns:
+            dict: A dictionary containing the following keys:
+                - "measurements": The measurements associated with the experiment.
+                - "location": The location of the experiment.
+                - "sweep": The sweep information of the experiment.
+                - "window": The window information of the experiment.
+                - "signal_type": The type of signal used in the experiment.
+                - "channel": The channel information of the experiment.
+        """
         return {
             "measurements": self.measurements,
             "location": self.location,
@@ -548,18 +943,9 @@ class FunctionOutput:
             "window": self.window,
             "signal_type": self.signal_type,
             "channel": self.channel,
+            "label": self.label
         }
 
-
-#        window_data_select = np.logical_and(np.array(self.channel) == trace_select.channel_information.channel_number[index],
- #                                                       np.array(window_data.sweep) == i)
-  #                  tmp_axs.plot(np.array(window_data.location)[window_data_select], np.array(window_data.measurements)[window_data_select], "o", color="orange")
-   #                 tmp_axs.axvspan(xmin=window_data.window[window_data_select][0][0], xmax=window_data.window[window_data_select][0][1], color='gray', alpha=0.1)
-
-
-        plt.plot(self.location, self.measurements, "o")
-        if show:
-            plt.show()
 
 class Events:
     def __init__(self, trace: Trace) -> None:
@@ -666,6 +1052,7 @@ class MetaData:
             utils.string_match(files_to_remove, files_exist)
         ]
 
+
 class ExpData:
     """
     A class representing experimental data.
@@ -690,7 +1077,7 @@ class ExpData:
             for file in file_path:
                 self.protocols.append(Trace(file))
         self.meta_data = MetaData(file_path, experimenter)
+
     # TODO: function to add different protocols to the same experiment
     # TODO: get summary outputs for the experiment
     # TODO: get summary plots for the experiment
-
