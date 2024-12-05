@@ -687,9 +687,12 @@ class Trace:
         if return_fig:
             return fig_out
 
-    def plot_summary(self):
+    def plot_summary(self, show_trace: bool = True, align_onset: bool = True) -> None:
         try:
-            self.window_summary.plot(self, show=True)
+            if show_trace:
+                self.window_summary.plot(trace=self, align_onset=align_onset, show=True)
+            else:
+                self.window_summary.plot(align_onset=align_onset, show=True)
         except:
             print("No summary data found")
             return None
@@ -705,6 +708,7 @@ class FunctionOutput:
         self.signal_type = np.array([])
         self.window = np.ndarray(dtype=object, shape=(0, 2))
         self.label = np.array([])
+        self.time = np.array([])
 
     def append(
         self,
@@ -719,6 +723,9 @@ class FunctionOutput:
         trace_subset = trace.subset(
             channels=channels, signal_type=signal_type, rec_type=rec_type
         )
+        actual_time = deepcopy(trace_subset.time)
+        trace_subset.set_time(align_to_zero=True, cumulative=False,
+                              stimulus_interval=0.0, overwrite_time=True)
         for channel_index, channel in enumerate(
             trace_subset.channel_information.channel_number
         ):
@@ -866,6 +873,7 @@ class FunctionOutput:
                 self.signal_type = np.append(self.signal_type, channel_signal_type)
                 self.channel = np.append(self.channel, channel)
                 self.label = np.append(self.label, label)
+                self.time = np.append(self.time, actual_time[sweep_index,_get_time_index(trace_subset.time[sweep_index], self.location[-1])])
 
     def merge(self, window_summary, remove_duplicates=False) -> None:
         """
@@ -889,6 +897,7 @@ class FunctionOutput:
         self.signal_type = np.append(self.signal_type, window_summary.signal_type)
         self.channel = np.append(self.channel, window_summary.channel)
         self.label = np.append(self.label, window_summary.label)
+        self.time = np.append(self.time, window_summary.time)
         if remove_duplicates:
             np.unique(self.measurements)
             self.measurements = np.unique(self.measurements)
@@ -899,7 +908,37 @@ class FunctionOutput:
             self.channel = np.unique(self.channel)
             self.label = np.unique(self.label)
 
-    def plot(self, trace: Trace = None, show: bool = True, summary_only=True) -> None:
+    def point_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
+        """
+        Calculate the difference between two sets of measurements and append the result.
+
+        Parameters:
+        labels (list): Labels whose measurements will be used to calculate the difference.
+        new_name (str): Label name for the new set of measurements.
+        time_label (str): Label to identify the time points for the new measurements.
+
+        Returns:
+        None
+        """
+        unique_labels = np.unique(self.label)
+        if not all([label in unique_labels for label in labels]):
+            print("Labels not found in data")
+            return None
+        label_index_1 = np.where(self.label == labels[0])
+        label_index_2 = np.where(self.label == labels[1])
+        time_label_index = np.where(self.label == time_label)
+        diff = self.measurements[label_index_1] - self.measurements[label_index_2]
+        self.measurements = np.append(self.measurements, diff)
+        self.location = np.append(self.location, self.location[time_label_index])
+        self.sweep = np.append(self.sweep, self.sweep[time_label_index])
+        self.window = np.append(self.window, self.window[time_label_index])
+        self.signal_type = np.append(self.signal_type, self.signal_type[time_label_index])
+        self.channel = np.append(self.channel, self.channel[time_label_index])
+        self.label = np.append(self.label, np.repeat(new_name, len(time_label_index[0])))
+        self.time = np.append(self.time, self.time[time_label_index])
+
+
+    def plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True, label_filter: list|str = []) -> None:
         """
         Plots the trace and/or summary measurements.
 
@@ -916,10 +955,22 @@ class FunctionOutput:
             trace_select = trace.subset(
                 channels=self.channel, signal_type=self.signal_type
             )
-            trace_select.plot(show=False)
+            trace_select.plot(show=False, align_onset=align_onset)
         # TODO: make sure to plot dots on right channel
-        if summary_only:
-            plt.plot(self.location, self.measurements, "o")
+        unique_labels = np.unique(self.label)
+        if align_onset:
+            x_axis = self.location
+        else:
+            x_axis = self.time
+        for color_index, label in enumerate(unique_labels):
+            if len(label_filter) > 0:
+                if label not in label_filter:
+                    continue
+            label_colors = utils.color_picker(length=len(unique_labels),
+                                              index=color_index, color='gist_rainbow') 
+            plt.plot(x_axis[np.where(self.label == label)],
+                     self.measurements[np.where(self.label == label)],
+                     "o", color=label_colors, alpha=0.5, label=label)
         if show:
             plt.show()
 
@@ -943,7 +994,8 @@ class FunctionOutput:
             "window": self.window,
             "signal_type": self.signal_type,
             "channel": self.channel,
-            "label": self.label
+            "label": self.label,
+            "time": self.time
         }
 
 
