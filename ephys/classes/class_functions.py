@@ -8,6 +8,7 @@ from numpy.lib.stride_tricks import sliding_window_view
 import neo
 import numpy as np
 
+
 def wcp_trace(trace, file_path: str) -> None:
     """
     Reads data from a WinWcp file and populates the given `trace` object with the data.
@@ -23,6 +24,7 @@ def wcp_trace(trace, file_path: str) -> None:
         None
     """
     import ephys.classes.experiment_objects as ephys_class
+
     reader = neo.WinWcpIO(file_path)
     data_block = reader.read_block()
     segment_len = reader.segment_count(0)
@@ -30,10 +32,12 @@ def wcp_trace(trace, file_path: str) -> None:
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = ephys_class.ChannelInformation(reader)
     channel_count = trace.channel_information.count()
-    trace.voltage = np.zeros((channel_count["signal_type"]["voltage"],
-                              segment_len, trace_len))
-    trace.current = np.zeros((channel_count["signal_type"]["current"],
-                              segment_len, trace_len))
+    trace.voltage = np.zeros(
+        (channel_count["signal_type"].get("voltage", 0), segment_len, trace_len)
+    )
+    trace.current = np.zeros(
+        (channel_count["signal_type"].get("current", 0), segment_len, trace_len)
+    )
     trace.time = np.zeros((segment_len, trace_len))
     voltage_channels = np.where(trace.channel_information.signal_type == "voltage")[0]
     current_channels = np.where(trace.channel_information.signal_type == "current")[0]
@@ -42,22 +46,24 @@ def wcp_trace(trace, file_path: str) -> None:
             time_unit = segment.analogsignals[0].times.units
         j = 0
         for voltage_channel in voltage_channels:
-            trace.voltage[j, index, :] = (
-                segment.analogsignals[voltage_channel].magnitude[:, 0]
-            )
+            trace.voltage[j, index, :] = segment.analogsignals[
+                voltage_channel
+            ].magnitude[:, 0]
             j += 1
         j = 0
         for current_channel in current_channels:
-            trace.current[j, index, :] = (
-                segment.analogsignals[current_channel].magnitude[:, 0]
-            )
+            trace.current[j, index, :] = segment.analogsignals[
+                current_channel
+            ].magnitude[:, 0]
             j += 1
-        trace.time[index,:] = segment.analogsignals[0].times
+        trace.time[index, :] = segment.analogsignals[0].times
     trace.time = Quantity(trace.time, units=time_unit)
+
 
 # TODO: add the function to read ABF files
 # NOTE: abf file does not always save protocol trace - find setting/reason and/or alternative needed
 # NOTE: requires pyabf package - evaluate how often protocol can be read
+
 
 def _signal_check(data):
     """
@@ -85,7 +91,13 @@ def _signal_check(data):
                 pass
             units.append(signal_idx[1].units)
         channel_count.append(
-            [np.array(v_count), np.array(c_count), len(v_count), len(c_count), np.array(units)]
+            [
+                np.array(v_count),
+                np.array(c_count),
+                len(v_count),
+                len(c_count),
+                np.array(units),
+            ]
         )
     return np.asarray(channel_count, dtype=object)
 
@@ -110,6 +122,7 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
         0.0,
         abs_tol=tol,
     )
+
 
 def _get_time_index(time: Quantity, time_point: float) -> any:
     """
