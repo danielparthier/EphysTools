@@ -138,3 +138,18 @@ def _get_time_index(time: Quantity, time_point: float) -> any:
     if time.magnitude.ndim == 2:
         return np.argmin(np.abs(time.magnitude - time_point), axis=1)
     return np.argmin(np.abs(time.magnitude - time_point))
+
+def moving_average(input_array: np.array, window_size: int) -> np.array:
+    """
+    Compute the moving average of a 1D array.
+
+    Parameters:
+    input_array (numpy.ndarray): The input array.
+    window_size (int): The size of the moving window.
+
+    Returns:
+    numpy.ndarray: The moving averages.
+    """
+    padded_input_array = np.pad(input_array, (window_size // 2), mode="edge")
+    window = np.ones(int(window_size))/float(window_size)
+    return np.convolve(padded_input_array, window, 'same')[(window_size // 2):(window_size // 2 + len(input_array))]
