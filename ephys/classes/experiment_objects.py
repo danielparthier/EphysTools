@@ -7,13 +7,11 @@ from copy import deepcopy
 from re import findall
 import neo
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from quantities import Quantity
-from ephys.classes.class_functions import wcp_trace
-from ephys.classes.class_functions import _get_time_index
-from ephys.classes.class_functions import _is_clamp
+from ephys.classes.class_functions import wcp_trace, _get_time_index, _is_clamp, moving_average
 from ephys import utils
-
 
 class ChannelInformation:
     """
@@ -687,12 +685,12 @@ class Trace:
         if return_fig:
             return fig_out
 
-    def plot_summary(self, show_trace: bool = True, align_onset: bool = True) -> None:
+    def plot_summary(self, show_trace: bool = True, align_onset: bool = True, label_filter: list|str = [], color = "black") -> None:
         try:
             if show_trace:
-                self.window_summary.plot(trace=self, align_onset=align_onset, show=True)
+                self.window_summary.plot(trace=self, align_onset=align_onset, show=True, label_filter=label_filter, color=color)
             else:
-                self.window_summary.plot(align_onset=align_onset, show=True)
+                self.window_summary.plot(align_onset=align_onset, show=True, label_filter=label_filter)
         except:
             print("No summary data found")
             return None
@@ -908,7 +906,7 @@ class FunctionOutput:
             self.channel = np.unique(self.channel)
             self.label = np.unique(self.label)
 
-    def point_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
+    def label_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
         """
         Calculate the difference between two sets of measurements and append the result.
 
@@ -933,12 +931,13 @@ class FunctionOutput:
         self.sweep = np.append(self.sweep, self.sweep[time_label_index])
         self.window = np.append(self.window, self.window[time_label_index])
         self.signal_type = np.append(self.signal_type, self.signal_type[time_label_index])
-        self.channel = np.append(self.channel, self.channel[time_label_index])
+        #self.channel = np.append(self.channel, self.channel[time_label_index])
         self.label = np.append(self.label, np.repeat(new_name, len(time_label_index[0])))
         self.time = np.append(self.time, self.time[time_label_index])
 
 
-    def plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True, label_filter: list|str = []) -> None:
+
+    def plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True, label_filter: list|str = [], color = "black") -> None:
         """
         Plots the trace and/or summary measurements.
 
@@ -955,7 +954,7 @@ class FunctionOutput:
             trace_select = trace.subset(
                 channels=self.channel, signal_type=self.signal_type
             )
-            trace_select.plot(show=False, align_onset=align_onset)
+            trace_select.plot(show=False, align_onset=align_onset, color=color)
         # TODO: make sure to plot dots on right channel
         unique_labels = np.unique(self.label)
         if align_onset:
@@ -966,11 +965,19 @@ class FunctionOutput:
             if len(label_filter) > 0:
                 if label not in label_filter:
                     continue
+            label_idx = np.where(self.label == label)
             label_colors = utils.color_picker(length=len(unique_labels),
-                                              index=color_index, color='gist_rainbow') 
-            plt.plot(x_axis[np.where(self.label == label)],
-                     self.measurements[np.where(self.label == label)],
+                                              index=color_index, color='gist_rainbow')
+            if not align_onset:
+                y_smooth = moving_average(self.measurements[label_idx], len(label_idx[0])//10)
+                plt.plot(x_axis[label_idx], y_smooth, color=label_colors, alpha=0.4, lw=2)
+             
+            plt.plot(x_axis[label_idx],
+                     self.measurements[label_idx],
                      "o", color=label_colors, alpha=0.5, label=label)
+        #plt.xlabel("Time (" + self.time.dimensionality.latex + ")")
+        plt.legend(loc="upper left")
+
         if show:
             plt.show()
 
@@ -997,6 +1004,14 @@ class FunctionOutput:
             "label": self.label,
             "time": self.time
         }
+    def to_dataframe(self):
+        """
+        Convert the experiment object to a pandas DataFrame.
+
+        Returns:
+            pandas.DataFrame: A DataFrame containing the measurements, location, sweep, window, signal_type, and channel information.
+        """
+        return pd.DataFrame(self.to_dict())
 
 
 class Events:
@@ -1122,7 +1137,8 @@ class ExpData:
 
     def __init__(self, file_path: str | list, experimenter: str = "unknown") -> None:
         self.protocols = []
-        self.file_info = None
+        self.meta_data = []
+        self.file_info = []
         if isinstance(file_path, str):
             self.protocols.append(Trace(file_path))
         elif isinstance(file_path, list):
