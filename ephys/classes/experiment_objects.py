@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from quantities import Quantity
-from ephys.classes.class_functions import wcp_trace, _get_time_index, _is_clamp, moving_average
+from ephys.classes.class_functions import _get_time_index, _is_clamp
 from ephys import utils
+
 
 class ChannelInformation:
     """
@@ -38,13 +39,14 @@ class ChannelInformation:
     --------
     __init__(data: any) -> dict:
         Initializes the ChannelInformation object with data from a neo.io object.
-    
+
     to_dict() -> dict:
         Converts the channel information to a dictionary format.
-    
+
     count() -> dict:
         Counts the occurrences of unique values in the channel information attributes.
     """
+
     def __init__(self, data: any) -> dict:
         type_out = []
         channel_list = []
@@ -131,7 +133,7 @@ class ChannelInformation:
     def count(self) -> dict:
         """
         Return the count of unique values in the channel information attributes.
-        
+
         Returns:
             dict: A dictionary containing the attributes and their counts.
                 - "signal_type" (dict): The count of unique signal types.
@@ -159,6 +161,235 @@ class ChannelInformation:
             "channel_grouping": dict(zip(channel_grouping, channel_grouping_count)),
             "unit": dict(zip(unit, unit_idx)),
         }
+
+
+class VoltageTrace:
+    """
+    A class to represent a voltage trace in electrophysiology experiments.
+
+    Attributes:
+    -----------
+    sweep_count : int
+        The number of sweeps in the voltage trace.
+    sweep_length : int
+        The length of each sweep.
+    unit : str
+        The unit of the voltage trace.
+    trace : Quantity
+        The voltage trace data.
+    clamped : None or bool
+        The clamped state of the voltage trace.
+
+    Methods:
+    --------
+    __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        Initializes the VoltageTrace with the given sweep count, sweep length, and unit.
+
+    insert_data(self, data, sweep_count: int):
+        Inserts data into the trace at the specified sweep count.
+
+    append_data(self, data):
+        Appends data to the trace.
+
+    load_data_block(self, data_block, channel_index):
+        Loads a block of data into the trace (currently a placeholder).
+
+    change_unit(self, unit):
+        Changes the unit of the voltage trace to the specified unit if it is a voltage unit.
+
+    check_clamp(self, quick_check: bool = False, warnings: bool = True):
+        Checks if the voltage trace is clamped using the check_clamp function.
+    """
+
+    def __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        self.sweep_count = sweep_count
+        self.sweep_length = sweep_length
+        self.unit = unit
+        self.trace = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.clamped = None
+
+    def insert_data(self, data, sweep_count: int) -> None:
+        """
+        Inserts sweep data into the trace at the specified sweep count.
+
+        Parameters:
+        data (numpy.ndarray): The data to be inserted.
+        sweep_count (int): The index at which the data should be inserted.
+
+        Returns:
+        None
+        """
+        self.trace[sweep_count] = data.flatten()
+
+    def append_data(self, data) -> None:
+        """
+        Appends new data to the existing trace.
+
+        Parameters:
+        data (numpy.ndarray): The data to be appended. It should be a numpy array that can be
+        flattened and stacked with the existing trace.
+
+        Returns:
+        None
+        """
+        self.trace = Quantity(np.vstack((self.trace, data.flatten())), self.unit)
+
+    def load_data_block(self, data_block, channel_index) -> None:
+        # TODO: Implement this method
+        pass
+
+    def change_unit(self, unit: str) -> None:
+        """
+        Change the unit of the trace to the specified voltage unit.
+
+        Parameters:
+        unit (str): The new unit to rescale the trace to. Must be a voltage unit.
+
+        Returns:
+        None
+
+        Raises:
+        ValueError: If the unit does not end with 'V'.
+        """
+        if unit.endswith("V"):
+            if unit.find("µ") == 0:
+                unit = unit.replace("µ", "u")
+            self.trace = self.trace.rescale(unit)
+            self.unit = unit
+        else:
+            raise ValueError("Unit must be voltage.")
+
+    def check_clamp(self, quick_check: bool = False, warnings: bool = True) -> None:
+        """
+        Checks the clamp status of the experiment.
+
+        This method uses the `check_clamp` function from the `ephys.classes.class_functions` module
+        to verify the clamp status of the experiment object.
+
+        Args:
+            quick_check (bool, optional): If True, performs a quick check. Defaults to False.
+            warnings (bool, optional): If True, displays warnings. Defaults to True.
+
+        Returns:
+            None
+        """
+        from ephys.classes.class_functions import check_clamp  # pylint: disable=C
+
+        check_clamp(self, quick_check, warnings)
+
+
+class CurrentTrace:
+    """
+    A class to represent a current trace in electrophysiology experiments.
+
+    Attributes:
+    -----------
+    sweep_count : int
+        The number of sweeps in the voltage trace.
+    sweep_length : int
+        The length of each sweep.
+    unit : str
+        The unit of the voltage trace.
+    trace : Quantity
+        The current trace data.
+    clamped : None or bool
+        The clamped state of the voltage trace.
+
+    Methods:
+    --------
+    __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        Initializes the VoltageTrace with the given sweep count, sweep length, and unit.
+
+    insert_data(self, data, sweep_count: int):
+        Inserts data into the trace at the specified sweep count.
+
+    append_data(self, data):
+        Appends data to the trace.
+
+    load_data_block(self, data_block, channel_index):
+        Loads a block of data into the trace (currently a placeholder).
+
+    change_unit(self, unit):
+        Changes the unit of the voltage trace to the specified unit if it is a voltage unit.
+
+    check_clamp(self, quick_check: bool = False, warnings: bool = True):
+        Checks if the voltage trace is clamped using the check_clamp function.
+    """
+
+    def __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        self.sweep_count = sweep_count
+        self.sweep_length = sweep_length
+        self.unit = unit
+        self.trace = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.clamped = None
+
+    def insert_data(self, data, sweep_count: int) -> None:
+        """
+        Inserts sweep data into the trace at the specified sweep count.
+
+        Parameters:
+        data (numpy.ndarray): The data to be inserted.
+        sweep_count (int): The index at which the data should be inserted.
+
+        Returns:
+        None
+        """
+        self.trace[sweep_count] = data.flatten()
+
+    def append_data(self, data) -> None:
+        """
+        Appends new data to the existing trace.
+
+        Parameters:
+        data (numpy.ndarray): The data to be appended. It should be a numpy array that can be
+        flattened and stacked with the existing trace.
+
+        Returns:
+        None
+        """
+        self.trace = Quantity(np.vstack((self.trace, data.flatten())), self.unit)
+
+    def load_data_block(self, data_block, channel_index):
+        # TODO: Implement this method
+        pass
+    def change_unit(self, unit: str) -> None:
+        """
+        Change the unit of the trace to the specified voltage unit.
+
+        Parameters:
+        unit (str): The new unit to rescale the trace to. Must be a voltage unit.
+
+        Returns:
+        None
+
+        Raises:
+        ValueError: If the unit does not end with 'V'.
+        """
+        if unit.endswith("A"):
+            if unit.find("µ") == 0:
+                unit = unit.replace("µ", "u")
+            self.trace = self.trace.rescale(unit)
+            self.unit = unit
+        else:
+            raise ValueError("Unit must be current.")
+
+    def check_clamp(self, quick_check: bool = False, warnings: bool = True) -> None:
+        """
+        Checks the clamp status of the experiment.
+
+        This method uses the `check_clamp` function from the `ephys.classes.class_functions` module
+        to verify the clamp status of the experiment object.
+
+        Args:
+            quick_check (bool, optional): If True, performs a quick check. Defaults to False.
+            warnings (bool, optional): If True, displays warnings. Defaults to True.
+
+        Returns:
+            None
+        """
+        from ephys.classes.class_functions import check_clamp  # pylint: disable=C
+
+        check_clamp(self, quick_check, warnings)
 
 
 class Trace:
@@ -201,6 +432,8 @@ class Trace:
         self.sampling_rate = None
         self.channel_information = None
         if file_path.endswith(".wcp"):
+            from ephys.classes.class_functions import wcp_trace  # pylint: disable=C
+
             wcp_trace(self, file_path)
         else:
             print("File type not supported")
@@ -218,7 +451,7 @@ class Trace:
         rec_type: any = "",
         clamp_type: any = None,
         channel_groups: any = None,
-        subset_index_only: bool = False
+        subset_index_only: bool = False,
     ) -> any:
         """
         Subset the experiment object based on specified criteria.
@@ -399,27 +632,27 @@ class Trace:
         self : object
             The instance of the class containing the signal data.
         window : tuple, optional
-            A tuple specifying the start and end of the time window for baseline 
+            A tuple specifying the start and end of the time window for baseline
             calculation (default is (0, 0.1)).
         channels : any, optional
-            The channels to be processed. If None, all channels are processed 
+            The channels to be processed. If None, all channels are processed
             (default is None).
         signal_type : any, optional
-            The type of signal to be processed (e.g., 'voltage' or 'current'). 
+            The type of signal to be processed (e.g., 'voltage' or 'current').
             If None, all signal types are processed (default is None).
         rec_type : str, optional
             The type of recording (default is an empty string).
         median : bool, optional
-            If True, the median value within the window is used as the baseline. 
+            If True, the median value within the window is used as the baseline.
             If False, the mean value is used (default is False).
         overwrite : bool, optional
-            If True, the baseline-subtracted data will overwrite the original data. 
-            If False, a copy of the data with the baseline subtracted will be 
+            If True, the baseline-subtracted data will overwrite the original data.
+            If False, a copy of the data with the baseline subtracted will be
             returned (default is False).
 
         Returns:
         any
-            If overwrite is False, returns a copy of the data with the baseline 
+            If overwrite is False, returns a copy of the data with the baseline
             subtracted. If overwrite is True, returns None.
         """
         if not overwrite:
@@ -440,9 +673,7 @@ class Trace:
         )
         window_start_index = _get_time_index(trace_copy.time[0, :], window[0])
         window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
-        for subset_index, signal_type_subset in enumerate(
-            subset_channels.signal_type
-        ):
+        for subset_index, signal_type_subset in enumerate(subset_channels.signal_type):
             channel_index = subset_channels.array_index[subset_index]
             if signal_type_subset == "voltage":
                 for sweep_index in range(0, trace_copy.voltage.shape[1]):
@@ -511,7 +742,8 @@ class Trace:
         rec_type : str, optional
             Type of recording to be included in the subset. Default is an empty string.
         function : str, optional
-            Function to apply to the data. Supported functions are "mean", "median", "max", "min", "min_avg". Default is "mean".
+            Function to apply to the data. Supported functions are "mean", "median", "max",
+            "min", "min_avg". Default is "mean".
         return_output : bool, optional
             If True, the function returns the output. Default is False.
         plot : bool, optional
@@ -548,7 +780,7 @@ class Trace:
                     rec_type=subset_channels.channel_information.recording_type[
                         channel_index
                     ],
-                    label=label
+                    label=label,
                 )
         if plot:
             subset_channels.plot(trace=subset_channels, show=True, window_data=output)
@@ -685,18 +917,92 @@ class Trace:
         if return_fig:
             return fig_out
 
-    def plot_summary(self, show_trace: bool = True, align_onset: bool = True, label_filter: list|str = [], color = "black") -> None:
+    def plot_summary(
+        self,
+        show_trace: bool = True,
+        align_onset: bool = True,
+        label_filter: list | str = None,
+        color="black",
+    ) -> None:
+        """
+        Plots a summary of the experiment data.
+
+        Parameters:
+        -----------
+        show_trace : bool, optional
+            If True, includes the trace in the plot. Default is True.
+        align_onset : bool, optional
+            If True, aligns the plot on the onset. Default is True.
+        label_filter : list or str, optional
+            A filter to apply to the labels. Default is None.
+        color : str, optional
+            The color to use for the trace plot. Default is "black".
+
+        Returns:
+        --------
+        None
+        """
+        if label_filter is None:
+            label_filter = []
         try:
             if show_trace:
-                self.window_summary.plot(trace=self, align_onset=align_onset, show=True, label_filter=label_filter, color=color)
+                self.window_summary.plot(
+                    trace=self,
+                    align_onset=align_onset,
+                    show=True,
+                    label_filter=label_filter,
+                    color=color,
+                )
             else:
-                self.window_summary.plot(align_onset=align_onset, show=True, label_filter=label_filter)
+                self.window_summary.plot(
+                    align_onset=align_onset, show=True, label_filter=label_filter
+                )
         except:
             print("No summary data found")
-            return None
 
 
 class FunctionOutput:
+    """A class to handle the output of various functions applied to electrophysiological trace data.
+
+    Attributes:
+        function_name (str): The name of the function to be applied to the trace data.
+        measurements (np.ndarray): An array to store the measurements obtained from the trace data.
+        location (np.ndarray): An array to store the locations corresponding to the measurements.
+        sweep (np.ndarray): An array to store the sweep indices.
+        channel (np.ndarray): An array to store the channel numbers.
+        signal_type (np.ndarray): An array to store the types of signals (e.g., current, voltage).
+        window (np.ndarray): An array to store the time windows used for measurements.
+        label (np.ndarray): An array to store the labels associated with the measurements.
+        time (np.ndarray): An array to store the time points corresponding to the measurements.
+
+    Methods:
+        __init__(self, function_name: str) -> None:
+            Initializes the FunctionOutput object with the given function name.
+
+        append(self, trace: Trace, window: tuple, channels: any = None, signal_type: any = None,
+               rec_type: str = "", avg_window_ms: float = 1.0, label: str = "") -> None:
+            Appends measurements and related information from the given trace data to the
+            FunctionOutput object.
+
+        merge(self, window_summary, remove_duplicates=False) -> None:
+            Merges the measurements, location, sweep, window, signal_type, and channel attributes
+            from the given window_summary object into the current object. Optionally removes
+            duplicates from these attributes after merging.
+
+        label_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
+            Calculates the difference between two sets of measurements and appends the result.
+
+        plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True,
+             label_filter: list | str = [], color="black") -> None:
+            Plots the trace and/or summary measurements.
+
+        to_dict(self) -> dict:
+            Converts the experiment object to a dictionary representation.
+
+        to_dataframe(self) -> pd.DataFrame:
+            Converts the experiment object to a pandas DataFrame.
+    """
+
     def __init__(self, function_name: str) -> None:
         self.function_name = function_name
         self.measurements = np.array([])
@@ -716,14 +1022,44 @@ class FunctionOutput:
         signal_type: any = None,
         rec_type: str = "",
         avg_window_ms: float = 1.0,
-        label: str = ""
+        label: str = "",
     ) -> None:
+        """
+        Appends measurements from a given trace within a specified time window.
+
+        Parameters:
+        -----------
+        trace : Trace
+            The trace object containing the data to be analyzed.
+        window : tuple
+            A tuple specifying the start and end times of the window for measurement.
+        channels : any, optional
+            The channels to be included in the subset of the trace. Default is None.
+        signal_type : any, optional
+            The type of signal to be included in the subset of the trace. Default is None.
+        rec_type : str, optional
+            The recording type to be included in the subset of the trace. Default is an
+            empty string.
+        avg_window_ms : float, optional
+            The averaging window size in milliseconds for the 'min_avg' function. Default
+            is 1.0 ms.
+        label : str, optional
+            A label to be associated with the measurements. Default is an empty string.
+
+        Returns:
+        --------
+        None
+        """
         trace_subset = trace.subset(
             channels=channels, signal_type=signal_type, rec_type=rec_type
         )
         actual_time = deepcopy(trace_subset.time)
-        trace_subset.set_time(align_to_zero=True, cumulative=False,
-                              stimulus_interval=0.0, overwrite_time=True)
+        trace_subset.set_time(
+            align_to_zero=True,
+            cumulative=False,
+            stimulus_interval=0.0,
+            overwrite_time=True,
+        )
         for channel_index, channel in enumerate(
             trace_subset.channel_information.channel_number
         ):
@@ -849,11 +1185,15 @@ class FunctionOutput:
                     ]
                     window_start_index[sweep_index] = _get_time_index(
                         trace_subset.time[sweep_index, :],
-                        Quantity(min_time - time_window_size, trace_subset.time.units).magnitude
+                        Quantity(
+                            min_time - time_window_size, trace_subset.time.units
+                        ).magnitude,
                     )
                     window_end_index[sweep_index] = _get_time_index(
                         trace_subset.time[sweep_index, :],
-                        Quantity(min_time + time_window_size, trace_subset.time.units).magnitude
+                        Quantity(
+                            min_time + time_window_size, trace_subset.time.units
+                        ).magnitude,
                     )
                     self.location = np.append(self.location, min_time)
                     self.measurements = np.append(
@@ -862,7 +1202,9 @@ class FunctionOutput:
                             trace_array[
                                 array_index,
                                 sweep_index,
-                                window_start_index[sweep_index] : window_end_index[sweep_index]
+                                window_start_index[sweep_index] : window_end_index[
+                                    sweep_index
+                                ],
                             ]
                         ),
                     )
@@ -871,18 +1213,26 @@ class FunctionOutput:
                 self.signal_type = np.append(self.signal_type, channel_signal_type)
                 self.channel = np.append(self.channel, channel)
                 self.label = np.append(self.label, label)
-                self.time = np.append(self.time, actual_time[sweep_index,_get_time_index(trace_subset.time[sweep_index], self.location[-1])])
+                self.time = np.append(
+                    self.time,
+                    actual_time[
+                        sweep_index,
+                        _get_time_index(
+                            trace_subset.time[sweep_index], self.location[-1]
+                        ),
+                    ],
+                )
 
     def merge(self, window_summary, remove_duplicates=False) -> None:
         """
-        Merges the measurements, location, sweep, window, signal_type, and channel attributes 
-        from the given window_summary object into the current object. Optionally removes duplicates 
+        Merges the measurements, location, sweep, window, signal_type, and channel attributes
+        from the given window_summary object into the current object. Optionally removes duplicates
         from these attributes after merging.
 
         Args:
-            window_summary (object): An object containing measurements, location, sweep, window, 
+            window_summary (object): An object containing measurements, location, sweep, window,
                          signal_type, and channel attributes to be merged.
-            remove_duplicates (bool, optional): If True, removes duplicate entries from the merged 
+            remove_duplicates (bool, optional): If True, removes duplicate entries from the merged
                             attributes. Defaults to True.
 
         Returns:
@@ -906,7 +1256,9 @@ class FunctionOutput:
             self.channel = np.unique(self.channel)
             self.label = np.unique(self.label)
 
-    def label_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
+    def label_diff(
+        self, labels: list = None, new_name: str = "", time_label: str = ""
+    ) -> None:
         """
         Calculate the difference between two sets of measurements and append the result.
 
@@ -918,8 +1270,10 @@ class FunctionOutput:
         Returns:
         None
         """
+        if labels is None:
+            labels = []
         unique_labels = np.unique(self.label)
-        if not all([label in unique_labels for label in labels]):
+        if not all(label in unique_labels for label in labels):
             print("Labels not found in data")
             return None
         label_index_1 = np.where(self.label == labels[0])
@@ -930,25 +1284,40 @@ class FunctionOutput:
         self.location = np.append(self.location, self.location[time_label_index])
         self.sweep = np.append(self.sweep, self.sweep[time_label_index])
         self.window = np.append(self.window, self.window[time_label_index])
-        self.signal_type = np.append(self.signal_type, self.signal_type[time_label_index])
-        #self.channel = np.append(self.channel, self.channel[time_label_index])
-        self.label = np.append(self.label, np.repeat(new_name, len(time_label_index[0])))
+        self.signal_type = np.append(
+            self.signal_type, self.signal_type[time_label_index]
+        )
+        # self.channel = np.append(self.channel, self.channel[time_label_index])
+        self.label = np.append(
+            self.label, np.repeat(new_name, len(time_label_index[0]))
+        )
         self.time = np.append(self.time, self.time[time_label_index])
 
-
-
-    def plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True, label_filter: list|str = [], color = "black") -> None:
+    def plot(
+        self,
+        trace: Trace = None,
+        show: bool = True,
+        align_onset: bool = True,
+        label_filter: list | str = None,
+        color="black",
+    ) -> None:
         """
         Plots the trace and/or summary measurements.
 
         Parameters:
-        trace (Trace, optional): The trace object to be plotted. If None, only the summary measurements are plotted. Default is None.
+        trace (Trace, optional): The trace object to be plotted. If None, only the summary
+                                 measurements are plotted. Default is None.
         show (bool, optional): If True, the plot will be displayed. Default is True.
-        summary_only (bool, optional): If True, only the summary measurements will be plotted. Default is True.
+        summary_only (bool, optional): If True, only the summary measurements will be
+                                      plotted. Default is True.
 
         Returns:
         None
         """
+        from ephys.classes.class_functions import moving_average  # pylint: disable=C
+
+        if label_filter is None:
+            label_filter = []
         if trace is not None:
             self.channel = np.unique(np.array(self.channel))
             trace_select = trace.subset(
@@ -966,16 +1335,26 @@ class FunctionOutput:
                 if label not in label_filter:
                     continue
             label_idx = np.where(self.label == label)
-            label_colors = utils.color_picker(length=len(unique_labels),
-                                              index=color_index, color='gist_rainbow')
+            label_colors = utils.color_picker(
+                length=len(unique_labels), index=color_index, color="gist_rainbow"
+            )
             if not align_onset:
-                y_smooth = moving_average(self.measurements[label_idx], len(label_idx[0])//10)
-                plt.plot(x_axis[label_idx], y_smooth, color=label_colors, alpha=0.4, lw=2)
-             
-            plt.plot(x_axis[label_idx],
-                     self.measurements[label_idx],
-                     "o", color=label_colors, alpha=0.5, label=label)
-        #plt.xlabel("Time (" + self.time.dimensionality.latex + ")")
+                y_smooth = moving_average(
+                    self.measurements[label_idx], len(label_idx[0]) // 10
+                )
+                plt.plot(
+                    x_axis[label_idx], y_smooth, color=label_colors, alpha=0.4, lw=2
+                )
+
+            plt.plot(
+                x_axis[label_idx],
+                self.measurements[label_idx],
+                "o",
+                color=label_colors,
+                alpha=0.5,
+                label=label,
+            )
+        # plt.xlabel("Time (" + self.time.dimensionality.latex + ")")
         plt.legend(loc="upper left")
 
         if show:
@@ -1002,14 +1381,16 @@ class FunctionOutput:
             "signal_type": self.signal_type,
             "channel": self.channel,
             "label": self.label,
-            "time": self.time
+            "time": self.time,
         }
+
     def to_dataframe(self):
         """
         Convert the experiment object to a pandas DataFrame.
 
         Returns:
-            pandas.DataFrame: A DataFrame containing the measurements, location, sweep, window, signal_type, and channel information.
+            pandas.DataFrame: A DataFrame containing the measurements, location,
+            sweep, window, signal_type, and channel information.
         """
         return pd.DataFrame(self.to_dict())
 
