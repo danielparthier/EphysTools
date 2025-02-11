@@ -786,9 +786,9 @@ class Trace:
             subset_channels.plot(trace=subset_channels, show=True, window_data=output)
         if return_output:
             return output
-        try:
+        if hasattr(self, "window_summary"):
             self.window_summary.merge(output)
-        except:
+        else:
             setattr(self, "window_summary", output)
 
     def average_trace(
