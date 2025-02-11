@@ -769,7 +769,7 @@ class Trace:
         for channel_index, channel in enumerate(
             subset_channels.channel_information.channel_number
         ):
-            for window_index, window_subset in enumerate(window):
+            for window_subset in window:
                 output.append(
                     trace=subset_channels,
                     window=window_subset,
@@ -944,7 +944,7 @@ class Trace:
         """
         if label_filter is None:
             label_filter = []
-        try:
+        if hasattr(self, "window_summary"):
             if show_trace:
                 self.window_summary.plot(
                     trace=self,
@@ -957,7 +957,7 @@ class Trace:
                 self.window_summary.plot(
                     align_onset=align_onset, show=True, label_filter=label_filter
                 )
-        except:
+        else:
             print("No summary data found")
 
 
