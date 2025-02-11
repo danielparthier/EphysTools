@@ -1,8 +1,8 @@
 """
 This module provides function to check and import ephys objects and generates metadata.
 """
-from re import findall
 from math import isclose
+from typing import Union
 from quantities import Quantity
 from numpy.lib.stride_tricks import sliding_window_view
 import neo
@@ -23,7 +23,7 @@ def wcp_trace(trace, file_path: str) -> None:
     Raises:
         None
     """
-    import ephys.classes.experiment_objects as ephys_class
+    import ephys.classes.experiment_objects as ephys_class  # pylint: disable=C
 
     reader = neo.WinWcpIO(file_path)
     data_block = reader.read_block()
@@ -108,8 +108,10 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
 
     Parameters:
     - trace (np.array): The input trace.
-    - window_len (int): The length of the sliding window used for median filtering. Default is 100.
-    - tol (float): The tolerance value for comparing the standard deviation to zero. Default is 1e-20.
+    - window_len (int): The length of the sliding window used for median
+      filtering. Default is 100.
+    - tol (float): The tolerance value for comparing the standard deviation
+      to zero. Default is 1e-20.
 
     Returns:
     - bool: True if the trace represents a clamp, False otherwise.
@@ -122,6 +124,44 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
         0.0,
         abs_tol=tol,
     )
+
+
+def check_clamp(
+    trace: Union["VoltageTrace", "CurrentTrace"],
+    quick_check: bool = False,
+    warnings: bool = True,
+) -> bool:
+    """
+    Check if the given trace is clamped.
+
+    Parameters:
+    trace (VoltageTrace or CurrentTrace): The trace object to check.
+    It should have a 'trace' attribute which is a list of values.
+    quick_check (bool, optional): If True, only the first value of the trace is
+    checked. Defaults to False.
+    warnings (bool, optional): If True, prints a warning message when using
+    quick_check. Defaults to True.
+
+    Returns:
+    bool: True if the trace is clamped, False otherwise.
+
+    Notes:
+    - If quick_check is True, the function sets the 'clamped' attribute of the
+    trace based on the first value of the trace.
+    - If quick_check is False, the function checks all values in the trace and
+    sets the 'clamped' attribute based on the consistency of the clamp status.
+    - If the clamp status is not consistent, a warning is printed.
+    """
+    if quick_check:
+        trace.clamped = _is_clamp(trace.trace[0])
+        if warnings:
+            print("Warning: Quick check might not be accurate.")
+    else:
+        clamp_check = [_is_clamp(trace_check) for trace_check in trace.trace]
+        if len(np.unique(clamp_check)) == 1:
+            trace.clamped = clamp_check[0]
+        else:
+            print("Clamp status is not consistent.")
 
 
 def _get_time_index(time: Quantity, time_point: float) -> any:
@@ -139,6 +179,7 @@ def _get_time_index(time: Quantity, time_point: float) -> any:
         return np.argmin(np.abs(time.magnitude - time_point), axis=1)
     return np.argmin(np.abs(time.magnitude - time_point))
 
+
 def moving_average(input_array: np.array, window_size: int) -> np.array:
     """
     Compute the moving average of a 1D array.
@@ -151,5 +192,7 @@ def moving_average(input_array: np.array, window_size: int) -> np.array:
     numpy.ndarray: The moving averages.
     """
     padded_input_array = np.pad(input_array, (window_size // 2), mode="edge")
-    window = np.ones(int(window_size))/float(window_size)
-    return np.convolve(padded_input_array, window, 'same')[(window_size // 2):(window_size // 2 + len(input_array))]
+    window = np.ones(int(window_size)) / float(window_size)
+    return np.convolve(padded_input_array, window, "same")[
+        (window_size // 2) : (window_size // 2 + len(input_array))
+    ]
