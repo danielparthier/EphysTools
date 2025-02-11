@@ -285,20 +285,20 @@ class CurrentTrace:
     Attributes:
     -----------
     sweep_count : int
-        The number of sweeps in the voltage trace.
+        The number of sweeps in the current trace.
     sweep_length : int
         The length of each sweep.
     unit : str
-        The unit of the voltage trace.
+        The unit of the current trace.
     trace : Quantity
         The current trace data.
     clamped : None or bool
-        The clamped state of the voltage trace.
+        The clamped state of the current trace.
 
     Methods:
     --------
     __init__(self, sweep_count: int, sweep_length: int, unit: str):
-        Initializes the VoltageTrace with the given sweep count, sweep length, and unit.
+        Initializes the CurrentTrace with the given sweep count, sweep length, and unit.
 
     insert_data(self, data, sweep_count: int):
         Inserts data into the trace at the specified sweep count.
@@ -310,10 +310,10 @@ class CurrentTrace:
         Loads a block of data into the trace (currently a placeholder).
 
     change_unit(self, unit):
-        Changes the unit of the voltage trace to the specified unit if it is a voltage unit.
+        Changes the unit of the current trace to the specified unit if it is a current unit.
 
     check_clamp(self, quick_check: bool = False, warnings: bool = True):
-        Checks if the voltage trace is clamped using the check_clamp function.
+        Checks if the current trace is clamped using the check_clamp function.
     """
 
     def __init__(self, sweep_count: int, sweep_length: int, unit: str):
