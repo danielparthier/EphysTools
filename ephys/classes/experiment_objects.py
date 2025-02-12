@@ -85,7 +85,25 @@ class ChannelInformation:
                 channel_list.append(channel_index)
                 channel_unit.append(str(i["units"]))
         elif isinstance(data, neo.io.axonio.AxonIO):
-            pass
+            analogsignals = data.read_block().segments[0].analogsignals
+            for i in data.header["signal_channels"]:
+                if len(findall(r"V", i[4])) == 1:
+                    type_out.append("cell")
+                    signal_type.append("voltage")
+                    array_index.append(voltage_index)
+                    voltage_index += 1
+                elif len(findall(r"A", i[4])) == 1:
+                    type_out.append("cell")
+                    signal_type.append("current")
+                    array_index.append(current_index)
+                    current_index += 1
+                channel_groups.append(i["stream_id"].astype(int).tolist())
+                clamp_type.append(
+                    _is_clamp(analogsignals[channel_index].magnitude.squeeze())
+                )
+                channel_index += 1
+                channel_list.append(channel_index)
+                channel_unit.append(str(i["units"]))
         elif isinstance(data, neo.io.igorproio.IgorIO):
             pass
         if len(channel_list) > 0:
@@ -175,7 +193,7 @@ class VoltageTrace:
         The length of each sweep.
     unit : str
         The unit of the voltage trace.
-    trace : Quantity
+    data : Quantity
         The voltage trace data.
     clamped : None or bool
         The clamped state of the voltage trace.
@@ -205,7 +223,7 @@ class VoltageTrace:
         self.sweep_count = sweep_count
         self.sweep_length = sweep_length
         self.unit = unit
-        self.trace = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.data = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
         self.clamped = None
 
     def insert_data(self, data, sweep_count: int) -> None:
@@ -219,7 +237,7 @@ class VoltageTrace:
         Returns:
         None
         """
-        self.trace[sweep_count] = data.flatten()
+        self.data[sweep_count] = data.flatten()
 
     def append_data(self, data) -> None:
         """
@@ -232,7 +250,7 @@ class VoltageTrace:
         Returns:
         None
         """
-        self.trace = Quantity(np.vstack((self.trace, data.flatten())), self.unit)
+        self.data = Quantity(np.vstack((self.data, data.flatten())), self.unit)
 
     def load_data_block(self, data_block, channel_index) -> None:
         # TODO: Implement this method
@@ -254,7 +272,7 @@ class VoltageTrace:
         if unit.endswith("V"):
             if unit.find("µ") == 0:
                 unit = unit.replace("µ", "u")
-            self.trace = self.trace.rescale(unit)
+            self.data = self.data.rescale(unit)
             self.unit = unit
         else:
             raise ValueError("Unit must be voltage.")
@@ -290,7 +308,7 @@ class CurrentTrace:
         The length of each sweep.
     unit : str
         The unit of the current trace.
-    trace : Quantity
+    data : Quantity
         The current trace data.
     clamped : None or bool
         The clamped state of the current trace.
@@ -320,7 +338,7 @@ class CurrentTrace:
         self.sweep_count = sweep_count
         self.sweep_length = sweep_length
         self.unit = unit
-        self.trace = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.data = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
         self.clamped = None
 
     def insert_data(self, data, sweep_count: int) -> None:
@@ -334,7 +352,7 @@ class CurrentTrace:
         Returns:
         None
         """
-        self.trace[sweep_count] = data.flatten()
+        self.data[sweep_count] = data.flatten()
 
     def append_data(self, data) -> None:
         """
@@ -347,7 +365,7 @@ class CurrentTrace:
         Returns:
         None
         """
-        self.trace = Quantity(np.vstack((self.trace, data.flatten())), self.unit)
+        self.data = Quantity(np.vstack((self.data, data.flatten())), self.unit)
 
     def load_data_block(self, data_block, channel_index):
         # TODO: Implement this method
@@ -368,7 +386,7 @@ class CurrentTrace:
         if unit.endswith("A"):
             if unit.find("µ") == 0:
                 unit = unit.replace("µ", "u")
-            self.trace = self.trace.rescale(unit)
+            self.data = self.data.rescale(unit)
             self.unit = unit
         else:
             raise ValueError("Unit must be current.")
@@ -424,7 +442,7 @@ class Trace:
             parameters.
     """
 
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str, quick_check: bool = True) -> None:
         self.file_path = file_path
         self.voltage = None
         self.current = None
@@ -432,9 +450,12 @@ class Trace:
         self.sampling_rate = None
         self.channel_information = None
         if file_path.endswith(".wcp"):
-            from ephys.classes.class_functions import wcp_trace  # pylint: disable=C
-
-            wcp_trace(self, file_path)
+            from ephys.classes.class_functions import wcp_trace_old, wcp_trace_new  # pylint: disable=C
+            wcp_trace_old(self, file_path)
+            wcp_trace_new(self, file_path, quick_check)
+        elif file_path.endswith(".abf"):
+            from ephys.classes.class_functions import abf_trace
+            abf_trace(self, file_path, quick_check)
         else:
             print("File type not supported")
 
