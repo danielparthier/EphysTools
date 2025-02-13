@@ -180,7 +180,6 @@ class ChannelInformation:
             "unit": dict(zip(unit, unit_idx)),
         }
 
-
 class VoltageTrace:
     """
     A class to represent a voltage trace in electrophysiology experiments.
@@ -253,7 +252,7 @@ class VoltageTrace:
         self.data = Quantity(np.vstack((self.data, data.flatten())), self.unit)
 
     def load_data_block(self, data_block, channel_index) -> None:
-        # TODO: Implement this method
+        # TODO: Implement this method --> not sure if it is necessary
         pass
 
     def change_unit(self, unit: str) -> None:
@@ -368,7 +367,7 @@ class CurrentTrace:
         self.data = Quantity(np.vstack((self.data, data.flatten())), self.unit)
 
     def load_data_block(self, data_block, channel_index):
-        # TODO: Implement this method
+        # TODO: Implement this method --> not sure if it is necessary
         pass
     def change_unit(self, unit: str) -> None:
         """
@@ -408,7 +407,6 @@ class CurrentTrace:
         from ephys.classes.class_functions import check_clamp  # pylint: disable=C
 
         check_clamp(self, quick_check, warnings)
-
 
 class Trace:
     """
@@ -473,6 +471,7 @@ class Trace:
         clamp_type: any = None,
         channel_groups: any = None,
         subset_index_only: bool = False,
+        in_place: bool = False,
     ) -> any:
         """
         Subset the experiment object based on specified criteria.
@@ -488,7 +487,10 @@ class Trace:
             any: Subset of the experiment object.
 
         """
-        subset_trace = self.copy()
+        if in_place:
+            subset_trace = self
+        else:
+            subset_trace = self.copy()
         rec_type_get = utils.string_match(
             rec_type, self.channel_information.recording_type
         )
@@ -522,6 +524,7 @@ class Trace:
                 channel_groups_get,
             )
         )
+        # FIXME: remove this section after adjust downstream functions to new format
         voltage_selection = self.channel_information.array_index[
             (self.channel_information.signal_type == "voltage") & combined_index
         ]
@@ -567,6 +570,7 @@ class Trace:
             subset_trace.channel_information.unit = self.channel_information.unit[
                 combined_index
             ]
+            subset_trace.channel = np.array(subset_trace.channel)[combined_index].tolist()
         else:
             subset_trace.channel_information.channel_number = np.array([])
             subset_trace.channel_information.array_index = np.array([])
