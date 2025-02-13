@@ -293,3 +293,21 @@ def moving_average(input_array: np.array, window_size: int) -> np.array:
     return np.convolve(padded_input_array, window, 'same')[
         (window_size // 2) : (window_size // 2 + len(input_array))
     ]
+
+def _get_sweep_subset(array: np.ndarray, sweep_subset: any) -> np.ndarray:
+        """
+        Get a subset of sweeps from the given trace.
+
+        Parameters:
+        trace (Union['VoltageTrace', 'CurrentTrace']): The trace object containing the data.
+        sweep_subset (np.ndarray): An array of indices specifying the subset of sweeps to retrieve. 
+                                   If None, all sweeps are included.
+
+        Returns:
+        np.ndarray: An array of unique indices specifying the subset of sweeps.
+        """
+        if sweep_subset is None:
+            sweep_subset = np.r_[range(array.shape[0])]
+        else:
+            sweep_subset = np.unique(np.r_[sweep_subset])
+        return sweep_subset
