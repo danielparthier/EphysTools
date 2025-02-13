@@ -926,16 +926,19 @@ class Trace:
         if signal_type is None:
             signal_type = ["voltage", "current"]
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        avg_trace = self.subset(signal_type=signal_type, rec_type=rec_type, sweep_subset=sweep_subset)
+        if in_place:
+            avg_trace = self
+        else:
+            avg_trace = self.copy()
+        avg_trace.subset(signal_type=signal_type, rec_type=rec_type, sweep_subset=sweep_subset,in_place=True)
         for channel in avg_trace.channel:
-            if in_place:
-                self.channel.average = np.mean(channel.data, axis=0)
-            else:
-                avg_trace.channel.average = np.mean(channel.data, axis=0)
+            avg_trace.channel.channel_average()
+        # FIXME: remove this section after adjust downstream functions to new format
         if utils.string_match("current", signal_type).any():
             avg_trace.current = avg_trace.current.mean(axis=1)
         if utils.string_match("voltage", signal_type).any():
             avg_trace.voltage = avg_trace.voltage.mean(axis=1)
+        # until here
         if in_place:
             return None
         else:
