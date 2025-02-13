@@ -105,8 +105,10 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
                 if segment_index == 0:
                     time_unit = segment.analogsignals[0].times.units
                 trace.time[segment_index, :] = segment.analogsignals[0].times
-        trace_insert.check_clamp(quick_check=quick_check)
+        trace_insert.check_clamp(quick_check=quick_check, warnings=False)
         trace.channel.append(trace_insert)
+    if quick_check:
+        print('Warning: Quick clamp check might not be accurate.')
     trace.time = Quantity(trace.time, units=time_unit)
 
 
@@ -153,8 +155,10 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
                 if segment_index == 0:
                     time_unit = segment.analogsignals[0].times.units
                 trace.time[segment_index, :] = segment.analogsignals[0].times
-        trace_insert.check_clamp(quick_check=quick_check)
+        trace_insert.check_clamp(quick_check=quick_check, warnings=False)
         trace.channel.append(trace_insert)
+    if quick_check:
+        print('Warning: Quick clamp check might not be accurate.')
     trace.time = Quantity(trace.time, units=time_unit)
 
 
