@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from quantities import Quantity
-from ephys.classes.class_functions import _get_time_index, _is_clamp
+from ephys.classes.class_functions import _get_time_index, _is_clamp, _get_sweep_subset
 from ephys import utils
 
 
@@ -224,6 +224,7 @@ class VoltageTrace:
         self.sweep_length = sweep_length
         self.unit = unit
         self.data = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.average = None
         self.clamped = None
 
     def insert_data(self, data, sweep_count: int) -> None:
@@ -294,7 +295,21 @@ class VoltageTrace:
         from ephys.classes.class_functions import check_clamp  # pylint: disable=C
 
         check_clamp(self, quick_check, warnings)
+    
+    def channel_average(self,
+                        sweep_subset: any = None) -> None:
+        """
+        Calculate the channel average for a given subset of sweeps.
 
+        Parameters:
+            sweep_subset (any, optional): A subset of sweeps to be averaged. If None, 
+            the entire set of sweeps will be used. Defaults to None.
+
+        Returns:
+            None: The result is stored in the `self.average` attribute as a ChannelAverage object.
+        """
+        sweep_subset = _get_sweep_subset(self, sweep_subset)
+        self.average = ChannelAverage(self.data, sweep_subset)
 
 class CurrentTrace:
     """
@@ -339,6 +354,7 @@ class CurrentTrace:
         self.sweep_length = sweep_length
         self.unit = unit
         self.data = Quantity(np.zeros((self.sweep_count, self.sweep_length)), unit)
+        self.average = None
         self.clamped = None
 
     def insert_data(self, data, sweep_count: int) -> None:
@@ -409,6 +425,22 @@ class CurrentTrace:
         from ephys.classes.class_functions import check_clamp  # pylint: disable=C
 
         check_clamp(self, quick_check, warnings)
+    
+    def channel_average(self,
+                        sweep_subset: any = None) -> None:
+        """
+        Calculate the channel average for a given subset of sweeps.
+
+        Parameters:
+            sweep_subset (any, optional): A subset of sweeps to be averaged. If None, 
+            the entire set of sweeps will be used. Defaults to None.
+
+        Returns:
+            None: The result is stored in the `self.average` attribute as a ChannelAverage object.
+        """
+        sweep_subset = _get_sweep_subset(self, sweep_subset)
+        self.average = ChannelAverage(self.data, sweep_subset)
+
 
 
 class Trace:
@@ -503,10 +535,7 @@ class Trace:
             any: Subset of the experiment object.
 
         """
-        if sweep_subset is None:
-            sweep_subset = np.r_[range(self.time.shape[0])]
-        else:
-            sweep_subset = np.unique(np.r_[sweep_subset])
+        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
         if in_place:
             subset_trace = self
         else:
@@ -554,11 +583,13 @@ class Trace:
         if len(voltage_selection) > 0:
             subset_trace.voltage = self.voltage[voltage_selection]
         else:
-            subset_trace.voltage = np.zeros(self.voltage.shape)
+#            subset_trace.voltage = np.zeros(self.voltage.shape)
+            pass
         if len(current_selection) > 0:
             subset_trace.current = self.current[current_selection]
         else:
-            subset_trace.current = np.zeros(self.current.shape)
+#            subset_trace.current = np.zeros(self.current.shape)
+            pass
         # until here
         if len(combined_index) > 0:
             signal_type = self.channel_information.signal_type[combined_index]
@@ -725,10 +756,7 @@ class Trace:
         )
         window_start_index = _get_time_index(trace_copy.time[0, :], window[0])
         window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
-        if sweep_subset is None:
-            sweep_subset = np.r_[range(self.time.shape[0])]
-        else:
-            sweep_subset = np.unique(np.r_[sweep_subset])
+        sweep_subset = _get_sweep_subset(trace_copy.time, sweep_subset)
         for subset_channel in trace_copy.channel:
             if median:
                 subset_channel.data.magnitude[
@@ -803,8 +831,9 @@ class Trace:
         rec_type: str = "",
         function: str = "mean",
         label: str = "",
+        sweep_subset: any = None,
         return_output: bool = False,
-        plot=False,
+        plot=False
     ) -> any:
         """
         Apply a specified function to a subset of channels within given time windows.
@@ -839,8 +868,9 @@ class Trace:
         if function not in ["mean", "median", "max", "min", "min_avg"]:
             print("Function not supported")
             return None
+        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
         subset_channels = self.subset(
-            channels=channels, signal_type=signal_type, rec_type=rec_type
+            channels=channels, signal_type=signal_type, rec_type=rec_type, sweep_subset=sweep_subset
         )
         output = np.ndarray((len(window), self.time.shape[0]))
         output = FunctionOutput(function)
@@ -874,6 +904,8 @@ class Trace:
         channels: any = None,
         signal_type: any = None,
         rec_type: any = "",
+        sweep_subset: any = None,
+        in_place: bool = False
     ) -> any:
         """
         Calculates the average trace for the given channels, signal_type types, and recording type.
@@ -893,12 +925,21 @@ class Trace:
             channels = self.channel_information.channel_number
         if signal_type is None:
             signal_type = ["voltage", "current"]
-        avg_trace = self.subset(channels, signal_type, rec_type)
+        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        avg_trace = self.subset(signal_type=signal_type, rec_type=rec_type, sweep_subset=sweep_subset)
+        for channel in avg_trace.channel:
+            if in_place:
+                self.channel.average = np.mean(channel.data, axis=0)
+            else:
+                avg_trace.channel.average = np.mean(channel.data, axis=0)
         if utils.string_match("current", signal_type).any():
             avg_trace.current = avg_trace.current.mean(axis=1)
         if utils.string_match("voltage", signal_type).any():
             avg_trace.voltage = avg_trace.voltage.mean(axis=1)
-        return avg_trace
+        if in_place:
+            return None
+        else:
+            return avg_trace
 
     def plot(
         self,
@@ -909,9 +950,10 @@ class Trace:
         alpha: float = 0.5,
         avg_color: str = "red",
         align_onset: bool = True,
+        sweep_subset: any = None,
         window: tuple = (0, 0),
         show: bool = True,
-        return_fig: bool = False,
+        return_fig: bool = False
     ):
         """
         Plots the traces for the specified channels.
@@ -929,26 +971,68 @@ class Trace:
         """
         if channels is None:
             channels = self.channel_information.channel_number
-        trace_select = self.subset(channels=channels, signal_type=signal_type)
+        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        trace_select = self.subset(channels=channels, signal_type=signal_type, sweep_subset=sweep_subset)
         fig, channel_axs = plt.subplots(
-            len(trace_select.channel_information.channel_number), 1, sharex=True
+            len(trace_select.channel), 1, sharex=True
         )
-        if (trace_select.voltage.shape[0] == 0) and (
-            trace_select.current.shape[0] == 0
-        ):
+        # FIXME: remove this section after adjust downstream functions to new format
+        if len(trace_select.channel) == 0:
             print("No traces found.")
             return None
+        # if (trace_select.voltage.shape[0] == 0) and (
+        #     trace_select.current.shape[0] == 0
+        # ):
+        #     print("No traces found.")
+        #     return None
         if window != (0, 0):
             plt.axvspan(xmin=window[0], xmax=window[1], color="gray", alpha=0.1)
         if align_onset:
-            time_array = self.set_time(
+            time_array = trace_select.set_time(
                 align_to_zero=True,
                 cumulative=False,
                 stimulus_interval=0.0,
                 overwrite_time=False,
             )
         else:
-            time_array = self.time
+            time_array = trace_select.time
+        
+        for channel_index, channel in enumerate(trace_select.channel):
+            if len(trace_select.channel) == 1:
+                tmp_axs = channel_axs
+            else:
+                tmp_axs = channel_axs[channel_index]
+            for i in range(0, channel.data.shape[1]):
+                tmp_axs.plot(
+                    time_array[i, :],
+                    channel.data[i, :],
+                    color=utils.trace_color(traces=channel.data, index=i, color=color),
+                    alpha=alpha,
+                )
+            if average:
+                trace_select_avg = trace_select.average_trace(
+                    channels=trace_select.channel_information.channel_number[index],
+                    signal_type=trace_select.channel_information.signal_type[index],
+                )
+                tmp_axs.plot(time_array[0, :], trace_select_avg.voltage[0], color=avg_color)
+
+                if trace_select.channel_information.signal_type[index] == "voltage":
+                    tmp_axs.plot(
+                        time_array[0, :], trace_select_avg.voltage[0], color=avg_color
+                    )
+                if trace_select.channel_information.signal_type[index] == "current":
+                    tmp_axs.plot(
+                        time_array[0, :], trace_select_avg.current[0], color=avg_color
+                    )
+            tmp_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
+            tmp_axs.set_ylabel(
+                trace_select.channel_information.signal_type[index].title()
+                + " ("
+                + trace_select.channel_information.unit[index]
+                + ")"
+            )
+
+        # FIXME: remove this section after adjust downstream functions to new format
         for index, array_index in enumerate(
             trace_select.channel_information.array_index
         ):
@@ -1038,6 +1122,44 @@ class Trace:
         else:
             print("No summary data found")
 
+class ChannelAverage:
+    """
+    A class to calculate the average trace from a set of voltage or current traces.
+
+    Attributes:
+    -----------
+    trace : np.ndarray
+        The average trace calculated from the provided data.
+    sweeps_used : np.ndarray
+        The indices of the sweeps used to calculate the average trace.
+
+    Methods:
+    --------
+    __init__(trace: VoltageTrace | CurrentTrace, sweep_subset: any = None) -> None
+        Initializes the ChannelAverage object and calculates the average trace.
+
+    Parameters:
+    -----------
+    trace : VoltageTrace | CurrentTrace
+        An object containing the voltage or current trace data.
+    sweep_subset : any, optional
+        A subset of sweeps to use for calculating the average trace. If None, all sweeps are used.
+
+    Raises:
+    -------
+    ValueError
+        If the provided trace data is empty.
+    """
+    def __init__(self, trace: VoltageTrace | CurrentTrace,
+        sweep_subset: any = None) -> None:
+        self.trace = None
+        self.sweeps_used = None
+        if len(trace.data) == 0:
+            raise ValueError('No data available to calculate the average trace.')
+        sweep_subset = _get_sweep_subset(trace.data, sweep_subset)
+        self.trace = np.mean(trace.data[sweep_subset,:], axis=0)
+        self.sweeps_used = sweep_subset
+        trace.average = self
 
 class FunctionOutput:
     """A class to handle the output of various functions applied to electrophysiological trace data.
