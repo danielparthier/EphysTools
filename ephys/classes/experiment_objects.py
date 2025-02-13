@@ -308,8 +308,8 @@ class VoltageTrace:
         Returns:
             None: The result is stored in the `self.average` attribute as a ChannelAverage object.
         """
-        sweep_subset = _get_sweep_subset(self, sweep_subset)
-        self.average = ChannelAverage(self.data, sweep_subset)
+        sweep_subset = _get_sweep_subset(self.data, sweep_subset)
+        self.average = ChannelAverage(self, sweep_subset)
 
 class CurrentTrace:
     """
@@ -438,8 +438,8 @@ class CurrentTrace:
         Returns:
             None: The result is stored in the `self.average` attribute as a ChannelAverage object.
         """
-        sweep_subset = _get_sweep_subset(self, sweep_subset)
-        self.average = ChannelAverage(self.data, sweep_subset)
+        sweep_subset = _get_sweep_subset(self.data, sweep_subset)
+        self.average = ChannelAverage(self, sweep_subset)
 
 
 
@@ -535,6 +535,11 @@ class Trace:
             any: Subset of the experiment object.
 
         """
+        if channels is None and signal_type is None and rec_type == "" and clamp_type is None and channel_groups is None:
+            if subset_index_only:
+                return subset_trace.channel_information
+            else:
+                return self
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
         if in_place:
             subset_trace = self
@@ -622,10 +627,11 @@ class Trace:
             subset_trace.channel_information.unit = self.channel_information.unit[
                 combined_index
             ]
-            subset_trace.channel = [
-                channel.data[sweep_subset, :]
-                for channel in np.array(subset_trace.channel)[combined_index]
-            ]
+            for channel_index, channel in enumerate(subset_trace.channel):
+                if combined_index[channel_index]:
+                    subset_trace.channel[channel_index].data = channel.data[sweep_subset, :]
+                else:
+                    subset_trace.channel.pop(channel_index)
             subset_trace.time = subset_trace.time[sweep_subset, :]
             # subset_trace.channel = np.array(subset_trace.channel)[combined_index].tolist()
         else:
@@ -638,7 +644,8 @@ class Trace:
             subset_trace.channel_information.unit = np.array([])
         if subset_index_only:
             return subset_trace.channel_information
-        return subset_trace
+        else:
+            return subset_trace
 
     def set_time(
         self,
@@ -932,7 +939,7 @@ class Trace:
             avg_trace = self.copy()
         avg_trace.subset(signal_type=signal_type, rec_type=rec_type, sweep_subset=sweep_subset,in_place=True)
         for channel in avg_trace.channel:
-            avg_trace.channel.channel_average()
+            channel.channel_average()
         # FIXME: remove this section after adjust downstream functions to new format
         if utils.string_match("current", signal_type).any():
             avg_trace.current = avg_trace.current.mean(axis=1)
