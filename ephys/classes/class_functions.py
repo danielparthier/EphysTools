@@ -33,15 +33,15 @@ def wcp_trace_old(trace, file_path: str) -> None:
     trace.channel_information = ephys_class.ChannelInformation(reader)
     channel_count = trace.channel_information.count()
     trace.voltage = np.zeros(
-        (channel_count["signal_type"].get("voltage", 0), segment_len, trace_len)
+        (channel_count['signal_type'].get('voltage', 0), segment_len, trace_len)
     )
     trace.current = np.zeros(
-        (channel_count["signal_type"].get("current", 0), segment_len, trace_len)
+        (channel_count['signal_type'].get('current', 0), segment_len, trace_len)
     )
     trace.time = np.zeros((segment_len, trace_len))
-    voltage_channels = np.where(trace.channel_information.signal_type == "voltage")[0]
-    current_channels = np.where(trace.channel_information.signal_type == "current")[0]
-    time_unit = "s"
+    voltage_channels = np.where(trace.channel_information.signal_type == 'voltage')[0]
+    current_channels = np.where(trace.channel_information.signal_type == 'current')[0]
+    time_unit = 's'
 
     for index, segment in enumerate(data_block.segments):
         if index == 0:
@@ -84,19 +84,19 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = ephys_class.ChannelInformation(reader)
-    channel_count = len(reader.header["signal_channels"])
+    channel_count = len(reader.header['signal_channels'])
     trace.channel = []
-    time_unit = "s"
+    time_unit = 's'
 
     trace.time = np.zeros((segment_len, trace_len))
     for channel_index in range(channel_count):
-        unit_string = str(reader.header["signal_channels"][channel_index]["units"])
-        if unit_string.find("V") != -1:
+        unit_string = str(reader.header['signal_channels'][channel_index]['units'])
+        if unit_string.find('V') != -1:
             trace_insert = ephys_class.VoltageTrace(segment_len, trace_len, unit_string)
-        elif unit_string.find("A") != -1:
+        elif unit_string.find('A') != -1:
             trace_insert = ephys_class.CurrentTrace(segment_len, trace_len, unit_string)
         else:
-            raise ValueError("Signal type not recognized")
+            raise ValueError('Signal type not recognized')
         for segment_index, segment in enumerate(data_block.segments):
             trace_insert.insert_data(
                 segment.analogsignals[channel_index], segment_index
@@ -132,19 +132,19 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = ephys_class.ChannelInformation(reader)
-    channel_count = len(reader.header["signal_channels"])
+    channel_count = len(reader.header['signal_channels'])
     trace.channel = []
-    time_unit = "s"
+    time_unit = 's'
     trace.time = np.zeros((segment_len, trace_len))
 
     for channel_index in range(channel_count):
-        unit_string = str(reader.header["signal_channels"][channel_index]["units"])
-        if unit_string.find("V") != -1:
+        unit_string = str(reader.header['signal_channels'][channel_index]['units'])
+        if unit_string.find('V') != -1:
             trace_insert = ephys_class.VoltageTrace(segment_len, trace_len, unit_string)
-        elif unit_string.find("A") != -1:
+        elif unit_string.find('A') != -1:
             trace_insert = ephys_class.CurrentTrace(segment_len, trace_len, unit_string)
         else:
-            raise ValueError("Signal type not recognized")
+            raise ValueError('Signal type not recognized')
         for segment_index, segment in enumerate(data_block.segments):
             trace_insert.insert_data(
                 segment.analogsignals[channel_index], segment_index
@@ -180,9 +180,9 @@ def _signal_check(data):
         units = []
         for signal_idx in enumerate(segment[1].analogsignals):
             unit_i = str(signal_idx[1].units)
-            if "V" in unit_i:
+            if 'V' in unit_i:
                 v_count.append(signal_idx[0])
-            elif "A" in unit_i:
+            elif 'A' in unit_i:
                 c_count.append(signal_idx[0])
             else:
                 pass
@@ -214,7 +214,7 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
     - bool: True if the trace represents a clamp, False otherwise.
     """
     if not isinstance(trace, np.ndarray):
-        assert isinstance(trace, np.ndarray), "Invalid input. Must be a numpy array."
+        assert isinstance(trace, np.ndarray), 'Invalid input. Must be a numpy array.'
     trace_median = np.median(sliding_window_view(trace, window_len), axis=1)
     return isclose(
         np.median(np.std(sliding_window_view(trace_median, window_len), axis=1)),
@@ -224,7 +224,7 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
 
 
 def check_clamp(
-    trace: Union["VoltageTrace", "CurrentTrace"],
+    trace: Union['VoltageTrace', 'CurrentTrace'],
     quick_check: bool = False,
     warnings: bool = True,
 ) -> bool:
@@ -252,13 +252,13 @@ def check_clamp(
     if quick_check:
         trace.clamped = _is_clamp(trace.data[0])
         if warnings:
-            print("Warning: Quick clamp check might not be accurate.")
+            print('Warning: Quick clamp check might not be accurate.')
     else:
         clamp_check = [_is_clamp(trace_check) for trace_check in trace.data]
         if len(np.unique(clamp_check)) == 1:
             trace.clamped = clamp_check[0]
         else:
-            print("Clamp status is not consistent.")
+            print('Clamp status is not consistent.')
 
 
 def _get_time_index(time: Quantity, time_point: float) -> any:
@@ -288,8 +288,8 @@ def moving_average(input_array: np.array, window_size: int) -> np.array:
     Returns:
     numpy.ndarray: The moving averages.
     """
-    padded_input_array = np.pad(input_array, (window_size // 2), mode="edge")
+    padded_input_array = np.pad(input_array, (window_size // 2), mode='edge')
     window = np.ones(int(window_size)) / float(window_size)
-    return np.convolve(padded_input_array, window, "same")[
+    return np.convolve(padded_input_array, window, 'same')[
         (window_size // 2) : (window_size // 2 + len(input_array))
     ]
