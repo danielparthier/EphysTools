@@ -148,8 +148,6 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     trace.time = Quantity(trace.time, units=time_unit)
 
 
-
-# TODO: add the function to read ABF files
 # NOTE: abf file does not always save protocol trace - find setting/reason and/or alternative needed
 # NOTE: requires pyabf package - evaluate how often protocol can be read
 
