@@ -9,15 +9,15 @@ from matplotlib import colormaps
 from matplotlib.colors import is_color_like
 import numpy as np
 
-def color_picker(length: int, index: int, color: str = "black"
-) -> str | np.ndarray:
+
+def color_picker(length: int, index: int, color: str = "black") -> str | np.ndarray:
     """
     Selects a color from a colormap or validates a given color string.
 
     Parameters:
     length (int): Number of colors in the colormap.
     index (int): Index of the color to select.
-    color (str): Name of the colormap or a color string. Defaults to "black".
+    color (str): Name of the colormap or a color string. Defaults to 'black'.
 
     Returns:
     str | np.ndarray: The selected color.
@@ -46,7 +46,7 @@ def trace_color(
     Parameters:
         traces (np.ndarray): The array of traces.
         index (int): The index of the trace.
-        color (str): The name of the colormap or a specific color. Default is "black".
+        color (str): The name of the colormap or a specific color. Default is 'black'.
 
     Returns:
         str or np.ndarray: The color for the specified trace.

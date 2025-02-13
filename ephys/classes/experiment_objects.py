@@ -130,13 +130,13 @@ class ChannelInformation:
 
         Returns:
             dict: A dictionary containing the following key-value pairs:
-                - "channel_number" (int): The channel number.
-                - "array_index" (int): The index of the array.
-                - "recording_type" (str): The type of recording.
-                - "signal_type" (str): The type of signal.
-                - "clamped" (bool): Indicates if the signal is clamped.
-                - "channel_grouping" (str): The grouping of the channel.
-                - "unit" (str): The unit of measurement.
+                - 'channel_number' (int): The channel number.
+                - 'array_index' (int): The index of the array.
+                - 'recording_type' (str): The type of recording.
+                - 'signal_type' (str): The type of signal.
+                - 'clamped' (bool): Indicates if the signal is clamped.
+                - 'channel_grouping' (str): The grouping of the channel.
+                - 'unit' (str): The unit of measurement.
         """
         return {
             "channel_number": self.channel_number,
@@ -154,12 +154,12 @@ class ChannelInformation:
 
         Returns:
             dict: A dictionary containing the attributes and their counts.
-                - "signal_type" (dict): The count of unique signal types.
-                - "array_index" (dict): The count of unique array indices.
-                - "recording_type" (dict): The count of unique recording types.
-                - "clamped" (dict): The count of unique clamp types.
-                - "channel_grouping" (dict): The count of unique channel groupings.
-                - "unit" (dict): The count of unique units.
+                - 'signal_type' (dict): The count of unique signal types.
+                - 'array_index' (dict): The count of unique array indices.
+                - 'recording_type' (dict): The count of unique recording types.
+                - 'clamped' (dict): The count of unique clamp types.
+                - 'channel_grouping' (dict): The count of unique channel groupings.
+                - 'unit' (dict): The count of unique units.
         """
         signal_type, signal_type_count = np.unique(self.signal_type, return_counts=True)
         array_index, array_index_count = np.unique(self.array_index, return_counts=True)
@@ -179,6 +179,7 @@ class ChannelInformation:
             "channel_grouping": dict(zip(channel_grouping, channel_grouping_count)),
             "unit": dict(zip(unit, unit_idx)),
         }
+
 
 class VoltageTrace:
     """
@@ -369,6 +370,7 @@ class CurrentTrace:
     def load_data_block(self, data_block, channel_index):
         # TODO: Implement this method --> not sure if it is necessary
         pass
+
     def change_unit(self, unit: str) -> None:
         """
         Change the unit of the trace to the specified voltage unit.
@@ -408,6 +410,7 @@ class CurrentTrace:
 
         check_clamp(self, quick_check, warnings)
 
+
 class Trace:
     """
     Represents a trace object.
@@ -423,13 +426,13 @@ class Trace:
             Returns a deep copy of the Trace object.
 
         subset(channels: any = all channels, can be a list,
-               signal_type: any = "voltage" and "current",
+               signal_type: any = 'voltage' and 'current',
                rec_type: any = all rec_types) -> any:
             Returns a subset of the Trace object based on the specified channels, signal_type, and
             rec_type.
 
         average_trace(channels: any = all channels, can be a list,
-                      signal_type: any = "voltage" and "current", can be a list,
+                      signal_type: any = 'voltage' and 'current', can be a list,
                       rec_type: any = all rec_types) -> any:
             Returns the average trace of the Trace object based on the specified channels,
             signal_type, and rec_type.
@@ -446,13 +449,19 @@ class Trace:
         self.current = None
         self.time = None
         self.sampling_rate = None
+        self.channel = None
         self.channel_information = None
         if file_path.endswith(".wcp"):
-            from ephys.classes.class_functions import wcp_trace_old, wcp_trace_new  # pylint: disable=C
+            from ephys.classes.class_functions import (
+                wcp_trace_old,
+                wcp_trace_new,
+            )  # pylint: disable=C
+
             wcp_trace_old(self, file_path)
             wcp_trace_new(self, file_path, quick_check)
         elif file_path.endswith(".abf"):
-            from ephys.classes.class_functions import abf_trace
+            from ephys.classes.class_functions import abf_trace  # pylint: disable=C
+
             abf_trace(self, file_path, quick_check)
         else:
             print("File type not supported")
@@ -470,6 +479,7 @@ class Trace:
         rec_type: any = "",
         clamp_type: any = None,
         channel_groups: any = None,
+        sweep_subset: any = None,
         subset_index_only: bool = False,
         in_place: bool = False,
     ) -> any:
@@ -480,13 +490,23 @@ class Trace:
             channels (any, optional): Channels to include in the subset.
                                       Defaults to all channels.
             signal_type (any, optional): Types of signal_type to include in the subset.
-                                   Defaults to ["voltage", "current"].
-            rec_type (any, optional): Recording types to include in the subset. Defaults to "".
+                                   Defaults to ['voltage', 'current'].
+            rec_type (any, optional): Recording types to include in the subset. Defaults to ''.
+            clamp_type (any, optional): Clamp types to include in the subset. Defaults to None.
+            channel_groups (any, optional): Channel groups to include in the subset. Defaults to None.
+            sweep_subset (any, optional): Sweeps to include in the subset. Possible inputs can be list,
+                                    arrays or slice(). Defaults to None.
+            subset_index_only (bool, optional): If True, returns only the subset index. Defaults to False.
+            in_place (bool, optional): If True, modifies the object in place. Defaults to False.
 
         Returns:
             any: Subset of the experiment object.
 
         """
+        if sweep_subset is None:
+            sweep_subset = np.r_[range(self.time.shape[0])]
+        else:
+            sweep_subset = np.unique(np.r_[sweep_subset])
         if in_place:
             subset_trace = self
         else:
@@ -539,6 +559,7 @@ class Trace:
             subset_trace.current = self.current[current_selection]
         else:
             subset_trace.current = np.zeros(self.current.shape)
+        # until here
         if len(combined_index) > 0:
             signal_type = self.channel_information.signal_type[combined_index]
             voltage_index = 0
@@ -570,7 +591,12 @@ class Trace:
             subset_trace.channel_information.unit = self.channel_information.unit[
                 combined_index
             ]
-            subset_trace.channel = np.array(subset_trace.channel)[combined_index].tolist()
+            subset_trace.channel = [
+                channel.data[sweep_subset, :]
+                for channel in np.array(subset_trace.channel)[combined_index]
+            ]
+            subset_trace.time = subset_trace.time[sweep_subset, :]
+            # subset_trace.channel = np.array(subset_trace.channel)[combined_index].tolist()
         else:
             subset_trace.channel_information.channel_number = np.array([])
             subset_trace.channel_information.array_index = np.array([])
@@ -634,7 +660,7 @@ class Trace:
 
         Parameters:
         - trace_data (Trace): The trace data object.
-        - time_unit (str): The time unit. Default is "s".
+        - time_unit (str): The time unit. Default is 's'.
 
         Returns:
         - None
@@ -649,6 +675,7 @@ class Trace:
         rec_type: str = "",
         median: bool = False,
         overwrite: bool = False,
+        sweep_subset: any = None,
     ) -> any:
         """
         Subtracts the baseline from the signal within a specified time window.
@@ -698,6 +725,32 @@ class Trace:
         )
         window_start_index = _get_time_index(trace_copy.time[0, :], window[0])
         window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
+        if sweep_subset is None:
+            sweep_subset = np.r_[range(self.time.shape[0])]
+        else:
+            sweep_subset = np.unique(np.r_[sweep_subset])
+        for subset_channel in trace_copy.channel:
+            if median:
+                subset_channel.data.magnitude[
+                    sweep_subset, :
+                ] = subset_channel.data.magnitude[sweep_subset, :] - np.median(
+                    subset_channel.data.magnitude[
+                        sweep_subset, window_start_index:window_end_index
+                    ],
+                    axis=1,
+                    keepdims=True,
+                )
+            else:
+                subset_channel.data.magnitude[
+                    sweep_subset, :
+                ] = subset_channel.data.magnitude[sweep_subset, :] - np.mean(
+                    subset_channel.data.magnitude[
+                        sweep_subset, window_start_index:window_end_index
+                    ],
+                    axis=1,
+                    keepdims=True,
+                )
+        # FIXME: remove this section after adjust downstream functions to new format
         for subset_index, signal_type_subset in enumerate(subset_channels.signal_type):
             channel_index = subset_channels.array_index[subset_index]
             if signal_type_subset == "voltage":
@@ -767,8 +820,8 @@ class Trace:
         rec_type : str, optional
             Type of recording to be included in the subset. Default is an empty string.
         function : str, optional
-            Function to apply to the data. Supported functions are "mean", "median", "max",
-            "min", "min_avg". Default is "mean".
+            Function to apply to the data. Supported functions are 'mean', 'median', 'max',
+            'min', 'min_avg'. Default is 'mean'.
         return_output : bool, optional
             If True, the function returns the output. Default is False.
         plot : bool, optional
@@ -829,7 +882,7 @@ class Trace:
         - channels (any): The channels to calculate the average trace for.
           If None, uses the first channel type.
         - signal_type (any): The signal_type types to calculate the average trace for.
-          Defaults to ["voltage", "current"].
+          Defaults to ['voltage', 'current'].
         - rec_type (any): The recording type to calculate the average trace for.
 
         Returns:
@@ -864,15 +917,15 @@ class Trace:
         Plots the traces for the specified channels.
 
         Args:
-            signal_type (str): The type of signal_type to use. Must be either "current" or
-            "voltage".
+            signal_type (str): The type of signal_type to use. Must be either 'current' or
+            'voltage'.
             channels (list, optional): The list of channels to plot. If None, all channels
             will be plotted. Defaults to None.
             average (bool, optional): Whether to plot the average trace. Defaults to False.
-            color (str, optional): The color of the individual traces. Defaults to "black".
+            color (str, optional): The color of the individual traces. Defaults to 'black'.
                                    Can be a colormap.
             alpha (float, optional): The transparency of the individual traces. Defaults to 0.5.
-            avg_color (str, optional): The color of the average trace. Defaults to "red".
+            avg_color (str, optional): The color of the average trace. Defaults to 'red'.
         """
         if channels is None:
             channels = self.channel_information.channel_number
@@ -961,7 +1014,7 @@ class Trace:
         label_filter : list or str, optional
             A filter to apply to the labels. Default is None.
         color : str, optional
-            The color to use for the trace plot. Default is "black".
+            The color to use for the trace plot. Default is 'black'.
 
         Returns:
         --------
@@ -1005,7 +1058,7 @@ class FunctionOutput:
             Initializes the FunctionOutput object with the given function name.
 
         append(self, trace: Trace, window: tuple, channels: any = None, signal_type: any = None,
-               rec_type: str = "", avg_window_ms: float = 1.0, label: str = "") -> None:
+               rec_type: str = '', avg_window_ms: float = 1.0, label: str = '') -> None:
             Appends measurements and related information from the given trace data to the
             FunctionOutput object.
 
@@ -1014,11 +1067,11 @@ class FunctionOutput:
             from the given window_summary object into the current object. Optionally removes
             duplicates from these attributes after merging.
 
-        label_diff(self, labels: list = [], new_name: str = "", time_label: str = "") -> None:
+        label_diff(self, labels: list = [], new_name: str = '', time_label: str = '') -> None:
             Calculates the difference between two sets of measurements and appends the result.
 
         plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True,
-             label_filter: list | str = [], color="black") -> None:
+             label_filter: list | str = [], color='black') -> None:
             Plots the trace and/or summary measurements.
 
         to_dict(self) -> dict:
@@ -1379,7 +1432,7 @@ class FunctionOutput:
                 alpha=0.5,
                 label=label,
             )
-        # plt.xlabel("Time (" + self.time.dimensionality.latex + ")")
+        # plt.xlabel('Time (' + self.time.dimensionality.latex + ')')
         plt.legend(loc="upper left")
 
         if show:
@@ -1391,12 +1444,12 @@ class FunctionOutput:
 
         Returns:
             dict: A dictionary containing the following keys:
-                - "measurements": The measurements associated with the experiment.
-                - "location": The location of the experiment.
-                - "sweep": The sweep information of the experiment.
-                - "window": The window information of the experiment.
-                - "signal_type": The type of signal used in the experiment.
-                - "channel": The channel information of the experiment.
+                - 'measurements': The measurements associated with the experiment.
+                - 'location': The location of the experiment.
+                - 'sweep': The sweep information of the experiment.
+                - 'window': The window information of the experiment.
+                - 'signal_type': The type of signal used in the experiment.
+                - 'channel': The channel information of the experiment.
         """
         return {
             "measurements": self.measurements,
@@ -1434,17 +1487,17 @@ class MetaData:
     Args:
         file_path (str | list): The path(s) of the file(s) to be added.
         experimenter (str | list, optional): The name(s) of the experimenter(s).
-                                             Defaults to "unknown".
+                                             Defaults to 'unknown'.
 
     Attributes:
         file_info (numpy.ndarray): An array containing information about the file(s).
         experiment_info (numpy.ndarray): An array containing information about the experiment(s).
 
     Methods:
-        __init__(self, file_path: str | list, experimenter: str | list = "unknown") -> None:
+        __init__(self, file_path: str | list, experimenter: str | list = 'unknown') -> None:
             Initializes the MetaData object.
 
-        add_file_info(self, file_path: str | list, experimenter: str | list = "unknown",
+        add_file_info(self, file_path: str | list, experimenter: str | list = 'unknown',
                       add: bool = True) -> None:
             Adds file information to the MetaData object.
 
@@ -1472,7 +1525,7 @@ class MetaData:
         Args:
             file_path (str | list): The path(s) of the file(s) to be added.
             experimenter (str | list, optional): The name(s) of the experimenter(s).
-                                                 Defaults to "unknown".
+                                                 Defaults to 'unknown'.
             add (bool, optional): Whether to append the information to existing data.
                                   Defaults to True.
         """
@@ -1532,7 +1585,7 @@ class ExpData:
 
     Args:
         file_path (str | list): The path(s) to the file(s) containing the data.
-        experimenter (str, optional): The name of the experimenter. Defaults to "unknown".
+        experimenter (str, optional): The name of the experimenter. Defaults to 'unknown'.
 
     Attributes:
         protocols (list): A list of Trace objects representing the protocols.

@@ -23,7 +23,7 @@ def wcp_trace_old(trace, file_path: str) -> None:
     Raises:
         None
     """
-    import ephys.classes.experiment_objects as ephys_class # pylint: disable=C
+    import ephys.classes.experiment_objects as ephys_class  # pylint: disable=C
 
     reader = neo.WinWcpIO(file_path)
     data_block = reader.read_block()
@@ -41,6 +41,8 @@ def wcp_trace_old(trace, file_path: str) -> None:
     trace.time = np.zeros((segment_len, trace_len))
     voltage_channels = np.where(trace.channel_information.signal_type == "voltage")[0]
     current_channels = np.where(trace.channel_information.signal_type == "current")[0]
+    time_unit = "s"
+
     for index, segment in enumerate(data_block.segments):
         if index == 0:
             time_unit = segment.analogsignals[0].times.units
@@ -59,6 +61,7 @@ def wcp_trace_old(trace, file_path: str) -> None:
         trace.time[index, :] = segment.analogsignals[0].times
     trace.time = Quantity(trace.time, units=time_unit)
 
+
 def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
     """
     Reads data from a WinWcp file and populates the given `trace` object with the data.
@@ -73,7 +76,7 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
     Raises:
         None
     """
-    import ephys.classes.experiment_objects as ephys_class # pylint: disable=C
+    import ephys.classes.experiment_objects as ephys_class  # pylint: disable=C
 
     reader = neo.WinWcpIO(file_path)
     data_block = reader.read_block()
@@ -81,20 +84,23 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = ephys_class.ChannelInformation(reader)
-    channel_count = len(reader.header['signal_channels'])
+    channel_count = len(reader.header["signal_channels"])
     trace.channel = []
+    time_unit = "s"
 
     trace.time = np.zeros((segment_len, trace_len))
     for channel_index in range(channel_count):
-        unit_string = str(reader.header['signal_channels'][channel_index]['units'])
-        if unit_string.find('V') != -1:
+        unit_string = str(reader.header["signal_channels"][channel_index]["units"])
+        if unit_string.find("V") != -1:
             trace_insert = ephys_class.VoltageTrace(segment_len, trace_len, unit_string)
-        elif unit_string.find('A') != -1:
+        elif unit_string.find("A") != -1:
             trace_insert = ephys_class.CurrentTrace(segment_len, trace_len, unit_string)
         else:
             raise ValueError("Signal type not recognized")
         for segment_index, segment in enumerate(data_block.segments):
-            trace_insert.insert_data(segment.analogsignals[channel_index], segment_index)
+            trace_insert.insert_data(
+                segment.analogsignals[channel_index], segment_index
+            )
             if channel_index == 0:
                 if segment_index == 0:
                     time_unit = segment.analogsignals[0].times.units
@@ -102,6 +108,7 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
         trace_insert.check_clamp(quick_check=quick_check)
         trace.channel.append(trace_insert)
     trace.time = Quantity(trace.time, units=time_unit)
+
 
 def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     """
@@ -117,7 +124,7 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     Raises:
         None
     """
-    import ephys.classes.experiment_objects as ephys_class # pylint: disable=C
+    import ephys.classes.experiment_objects as ephys_class  # pylint: disable=C
 
     reader = neo.AxonIO(file_path)
     data_block = reader.read_block()
@@ -125,20 +132,23 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     trace_len = len(data_block.segments[0].analogsignals[0])
     trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
     trace.channel_information = ephys_class.ChannelInformation(reader)
-    channel_count = len(reader.header['signal_channels'])
+    channel_count = len(reader.header["signal_channels"])
     trace.channel = []
-
+    time_unit = "s"
     trace.time = np.zeros((segment_len, trace_len))
+
     for channel_index in range(channel_count):
-        unit_string = str(reader.header['signal_channels'][channel_index]['units'])
-        if unit_string.find('V') != -1:
+        unit_string = str(reader.header["signal_channels"][channel_index]["units"])
+        if unit_string.find("V") != -1:
             trace_insert = ephys_class.VoltageTrace(segment_len, trace_len, unit_string)
-        elif unit_string.find('A') != -1:
+        elif unit_string.find("A") != -1:
             trace_insert = ephys_class.CurrentTrace(segment_len, trace_len, unit_string)
         else:
             raise ValueError("Signal type not recognized")
         for segment_index, segment in enumerate(data_block.segments):
-            trace_insert.insert_data(segment.analogsignals[channel_index], segment_index)
+            trace_insert.insert_data(
+                segment.analogsignals[channel_index], segment_index
+            )
             if channel_index == 0:
                 if segment_index == 0:
                     time_unit = segment.analogsignals[0].times.units
@@ -195,9 +205,9 @@ def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
 
     Parameters:
     - trace (np.array): The input trace.
-    - window_len (int): The length of the sliding window used for median 
+    - window_len (int): The length of the sliding window used for median
       filtering. Default is 100.
-    - tol (float): The tolerance value for comparing the standard deviation 
+    - tol (float): The tolerance value for comparing the standard deviation
       to zero. Default is 1e-20.
 
     Returns:
