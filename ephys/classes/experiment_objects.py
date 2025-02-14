@@ -9,6 +9,7 @@ import neo
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from quantities import Quantity
 from ephys.classes.class_functions import _get_time_index, _is_clamp, _get_sweep_subset
 from ephys import utils
@@ -537,7 +538,7 @@ class Trace:
         """
         if channels is None and signal_type is None and rec_type == "" and clamp_type is None and channel_groups is None:
             if subset_index_only:
-                return subset_trace.channel_information
+                return self.channel_information
             else:
                 return self
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
@@ -578,24 +579,7 @@ class Trace:
                 channel_groups_get,
             )
         )
-        # FIXME: remove this section after adjust downstream functions to new format
-        voltage_selection = self.channel_information.array_index[
-            (self.channel_information.signal_type == "voltage") & combined_index
-        ]
-        current_selection = self.channel_information.array_index[
-            (self.channel_information.signal_type == "current") & combined_index
-        ]
-        if len(voltage_selection) > 0:
-            subset_trace.voltage = self.voltage[voltage_selection]
-        else:
-#            subset_trace.voltage = np.zeros(self.voltage.shape)
-            pass
-        if len(current_selection) > 0:
-            subset_trace.current = self.current[current_selection]
-        else:
-#            subset_trace.current = np.zeros(self.current.shape)
-            pass
-        # until here
+
         if len(combined_index) > 0:
             signal_type = self.channel_information.signal_type[combined_index]
             voltage_index = 0
@@ -633,7 +617,6 @@ class Trace:
                 else:
                     subset_trace.channel.pop(channel_index)
             subset_trace.time = subset_trace.time[sweep_subset, :]
-            # subset_trace.channel = np.array(subset_trace.channel)[combined_index].tolist()
         else:
             subset_trace.channel_information.channel_number = np.array([])
             subset_trace.channel_information.array_index = np.array([])
@@ -912,7 +895,7 @@ class Trace:
         signal_type: any = None,
         rec_type: any = "",
         sweep_subset: any = None,
-        in_place: bool = False
+        in_place: bool = True
     ) -> any:
         """
         Calculates the average trace for the given channels, signal_type types, and recording type.
@@ -964,7 +947,7 @@ class Trace:
         window: tuple = (0, 0),
         show: bool = True,
         return_fig: bool = False
-    ):
+    ) -> None | Figure:
         """
         Plots the traces for the specified channels.
 
@@ -978,6 +961,15 @@ class Trace:
                                    Can be a colormap.
             alpha (float, optional): The transparency of the individual traces. Defaults to 0.5.
             avg_color (str, optional): The color of the average trace. Defaults to 'red'.
+            align_onset (bool, optional): Whether to align the traces on the onset. Defaults to True.
+            sweep_subset (any, optional): The subset of sweeps to plot. Defaults to None.
+            window (tuple, optional): The time window to plot. Defaults to (0, 0).
+            show (bool, optional): Whether to display the plot. Defaults to True.
+            return_fig (bool, optional): Whether to return the figure. Defaults to False.
+
+        Returns:
+            None or Figure: If show is True, returns None. If return_fig is True,
+            returns the figure.
         """
         if channels is None:
             channels = self.channel_information.channel_number
@@ -986,17 +978,11 @@ class Trace:
         fig, channel_axs = plt.subplots(
             len(trace_select.channel), 1, sharex=True
         )
-        # FIXME: remove this section after adjust downstream functions to new format
+
         if len(trace_select.channel) == 0:
             print("No traces found.")
             return None
-        # if (trace_select.voltage.shape[0] == 0) and (
-        #     trace_select.current.shape[0] == 0
-        # ):
-        #     print("No traces found.")
-        #     return None
-        if window != (0, 0):
-            plt.axvspan(xmin=window[0], xmax=window[1], color="gray", alpha=0.1)
+
         if align_onset:
             time_array = trace_select.set_time(
                 align_to_zero=True,
@@ -1012,83 +998,24 @@ class Trace:
                 tmp_axs = channel_axs
             else:
                 tmp_axs = channel_axs[channel_index]
-            for i in range(0, channel.data.shape[1]):
+            for i in range(0, channel.data.shape[0]):
                 tmp_axs.plot(
                     time_array[i, :],
                     channel.data[i, :],
                     color=utils.trace_color(traces=channel.data, index=i, color=color),
                     alpha=alpha,
                 )
+            if window != (0, 0):
+                tmp_axs.axvspan(xmin=window[0], xmax=window[1], color="gray", alpha=0.1)
             if average:
-                trace_select_avg = trace_select.average_trace(
-                    channels=trace_select.channel_information.channel_number[index],
-                    signal_type=trace_select.channel_information.signal_type[index],
-                )
-                tmp_axs.plot(time_array[0, :], trace_select_avg.voltage[0], color=avg_color)
-
-                if trace_select.channel_information.signal_type[index] == "voltage":
-                    tmp_axs.plot(
-                        time_array[0, :], trace_select_avg.voltage[0], color=avg_color
-                    )
-                if trace_select.channel_information.signal_type[index] == "current":
-                    tmp_axs.plot(
-                        time_array[0, :], trace_select_avg.current[0], color=avg_color
-                    )
-            tmp_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
-            tmp_axs.set_ylabel(
-                trace_select.channel_information.signal_type[index].title()
-                + " ("
-                + trace_select.channel_information.unit[index]
-                + ")"
-            )
-
-        # FIXME: remove this section after adjust downstream functions to new format
-        for index, array_index in enumerate(
-            trace_select.channel_information.array_index
-        ):
-            # NOTE: add here all the windows for the channel if window is existing
-            if trace_select.channel_information.signal_type[index] == "voltage":
-                trace_signal = trace_select.voltage
-            if trace_select.channel_information.signal_type[index] == "current":
-                trace_signal = trace_select.current
-            if len(trace_select.channel_information.array_index) == 1:
-                tmp_axs = channel_axs
-            else:
-                tmp_axs = channel_axs[index]
-            for i in range(0, trace_signal.shape[1]):
-                tmp_axs.plot(
-                    time_array[i, :],
-                    trace_signal[array_index, i, :],
-                    color=utils.trace_color(traces=trace_signal, index=i, color=color),
-                    alpha=alpha,
-                )
-            if average:
-                trace_select_avg = self.average_trace(
-                    channels=trace_select.channel_information.channel_number[index],
-                    signal_type=trace_select.channel_information.signal_type[index],
-                )
-                if trace_select.channel_information.signal_type[index] == "voltage":
-                    tmp_axs.plot(
-                        time_array[0, :], trace_select_avg.voltage[0], color=avg_color
-                    )
-                if trace_select.channel_information.signal_type[index] == "current":
-                    tmp_axs.plot(
-                        time_array[0, :], trace_select_avg.current[0], color=avg_color
-                    )
-            tmp_axs.set_xlabel("Time (" + time_array.dimensionality.latex + ")")
-            tmp_axs.set_ylabel(
-                trace_select.channel_information.signal_type[index].title()
-                + " ("
-                + trace_select.channel_information.unit[index]
-                + ")"
-            )
-        if return_fig:
-            fig_out = deepcopy(fig)
+                channel.channel_average(sweep_subset=sweep_subset, in_place=True)
+                tmp_axs.plot(time_array[0, :], channel.average.trace, color=avg_color)
         if show:
-            fig.show()
+            plt.show()
+            return None
         if return_fig:
-            return fig_out
-
+            return fig
+        
     def plot_summary(
         self,
         show_trace: bool = True,
