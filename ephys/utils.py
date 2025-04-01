@@ -51,7 +51,7 @@ def trace_color(
     Returns:
         str or np.ndarray: The color for the specified trace.
     """
-    return color_picker(traces.shape[1], index, color)
+    return color_picker(traces.shape[0], index, color)
 
 
 def string_match(pattern: any, string_list: any) -> np.ndarray:
