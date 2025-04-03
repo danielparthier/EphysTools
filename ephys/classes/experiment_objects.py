@@ -486,13 +486,14 @@ class Trace:
         self.sampling_rate = None
         self.channel = None
         self.channel_information = None
+        self.sweep_count = None
         if file_path.endswith(".wcp"):
             from ephys.classes.class_functions import (
-                wcp_trace_old,
+           #     wcp_trace_old,
                 wcp_trace_new,
             )  # pylint: disable=C
 
-            wcp_trace_old(self, file_path)
+          #  wcp_trace_old(self, file_path)
             wcp_trace_new(self, file_path, quick_check)
         elif file_path.endswith(".abf"):
             from ephys.classes.class_functions import abf_trace  # pylint: disable=C
@@ -638,6 +639,7 @@ class Trace:
         if subset_index_only:
             return subset_trace.channel_information
         else:
+            subset_trace.sweep_count = subset_trace.time[0]+1
             return subset_trace
 
     def set_time(
@@ -1666,10 +1668,19 @@ class ExpData:
         if isinstance(file_path, str):
             self.protocols.append(Trace(file_path))
         elif isinstance(file_path, list):
-            for file in file_path:
-                self.protocols.append(Trace(file))
-
-        self.meta_data = MetaData(file_path, experimenter)
+            loaded_files = []
+            for file_index, file in enumerate(file_path):
+                if not (file.endswith(".abf") or file.endswith(".wcp")):
+                    continue
+                try:
+                    self.protocols.append(Trace(file))
+                    loaded_files.append(file)
+                    print(f"Loaded file {file_index + 1}/{len(file_path)}: {file}")
+                except Exception as e:
+                    print(f"Error loading file {file}: {e}")
+                    print("Skipping file.")
+                    continue
+        self.meta_data = MetaData(loaded_files, experimenter)
         if sort:
             self.sort_by_date()
     
