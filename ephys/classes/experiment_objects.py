@@ -489,11 +489,11 @@ class Trace:
         self.sweep_count = None
         if file_path.endswith(".wcp"):
             from ephys.classes.class_functions import (
-           #     wcp_trace_old,
+                wcp_trace_old,
                 wcp_trace_new,
             )  # pylint: disable=C
 
-          #  wcp_trace_old(self, file_path)
+            wcp_trace_old(self, file_path)
             wcp_trace_new(self, file_path, quick_check)
         elif file_path.endswith(".abf"):
             from ephys.classes.class_functions import abf_trace  # pylint: disable=C
@@ -639,7 +639,7 @@ class Trace:
         if subset_index_only:
             return subset_trace.channel_information
         else:
-            subset_trace.sweep_count = subset_trace.time[0]+1
+            subset_trace.sweep_count = subset_trace.time.shape[0]+1
             return subset_trace
 
     def set_time(
@@ -968,6 +968,7 @@ class Trace:
         align_onset: bool = True,
         sweep_subset: any = None,
         window: tuple = (0, 0),
+        xlim: tuple = None,
         show: bool = True,
         return_fig: bool = False,
     ) -> None | Figure:
@@ -1036,10 +1037,12 @@ class Trace:
             tmp_axs.set_ylabel(f"Channel {trace_select.channel_information.channel_number[channel_index]} ({trace_select.channel_information.unit[channel_index]})")
 #            tmp_axs.set_ylabel(f'Channel')
         tmp_axs.set_xlabel(f"Time ({trace_select.time.units.dimensionality.string})")
+        if xlim is not None:
+            tmp_axs.set_xlim(xlim[0], xlim[1])
         plt.tight_layout()
         if show:
             plt.show()
-            return None
+#            return None
         if return_fig:
             return fig, channel_axs
 
@@ -1466,8 +1469,10 @@ class FunctionOutput:
             for channel_index, channel_number in enumerate(np.unique(self.channel)):
                 if channel_count > 1:
                     tmp_axs = channel_axs[channel_index]
+                    print("1")
                 else:
                     tmp_axs = channel_axs
+                    print("2")
                 if len(label_filter) > 0:
                     if label not in label_filter:
                         continue

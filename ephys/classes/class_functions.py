@@ -91,8 +91,9 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
     channel_count = len(reader.header["signal_channels"])
     trace.channel = []
     time_unit = "s"
-    trace.sweep_count = segment_len+1
+    trace.sweep_count = segment_len
     trace.time = np.zeros((segment_len, trace_len))
+    
     for channel_index in range(channel_count):
         unit_string = str(reader.header["signal_channels"][channel_index]["units"])
         if unit_string.find("V") != -1:
@@ -141,7 +142,7 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
     channel_count = len(reader.header["signal_channels"])
     trace.channel = []
     time_unit = "s"
-    trace.sweep_count = segment_len+1
+    trace.sweep_count = segment_len
     trace.time = np.zeros((segment_len, trace_len))
 
     for channel_index in range(channel_count):
