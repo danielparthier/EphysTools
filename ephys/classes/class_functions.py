@@ -7,6 +7,7 @@ from quantities import Quantity
 from numpy.lib.stride_tricks import sliding_window_view
 import neo
 import numpy as np
+from typing import Any
 
 
 def wcp_trace_old(trace, file_path: str) -> None:
@@ -209,7 +210,7 @@ def _signal_check(data):
     return np.asarray(channel_count, dtype=object)
 
 
-def _is_clamp(trace: np.array, window_len: int = 100, tol=1e-20) -> bool:
+def _is_clamp(trace: np.ndarray, window_len: int = 100, tol=1e-20) -> bool:
     """
     Check if the given trace represents a clamp.
 
@@ -237,7 +238,7 @@ def check_clamp(
     trace: Union["VoltageTrace", "CurrentTrace"],  # pylint: disable=C
     quick_check: bool = False,
     warnings: bool = True,
-) -> bool:
+) -> None:
     """
     Check if the given trace is clamped.
 
@@ -271,7 +272,7 @@ def check_clamp(
             print("Clamp status is not consistent.")
 
 
-def _get_time_index(time: Quantity, time_point: float) -> any:
+def _get_time_index(time: Quantity, time_point: float) -> Any:
     """
     Get the index of the time point in the given time array.
 
@@ -287,7 +288,7 @@ def _get_time_index(time: Quantity, time_point: float) -> any:
     return np.argmin(np.abs(time.magnitude - time_point))
 
 
-def moving_average(input_array: np.array, window_size: int) -> np.array:
+def moving_average(input_array: np.ndarray, window_size: int) -> np.ndarray:
     """
     Compute the moving average of a 1D array.
 
@@ -312,7 +313,7 @@ def moving_average(input_array: np.array, window_size: int) -> np.array:
     ]
 
 
-def _get_sweep_subset(array: np.ndarray, sweep_subset: any) -> np.ndarray:
+def _get_sweep_subset(array: np.ndarray, sweep_subset: Any) -> np.ndarray:
     """
     Get a subset of sweeps from the given trace.
 
