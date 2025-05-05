@@ -14,6 +14,7 @@ from quantities import Quantity
 from ephys.classes.class_functions import _get_time_index, _is_clamp, _get_sweep_subset
 from ephys import utils
 import matplotlib as mpl
+from typing import Any
 
 import matplotlib.style as mplstyle
 mplstyle.use('fast')
@@ -42,7 +43,7 @@ class ChannelInformation:
 
     Methods:
     --------
-    __init__(data: any) -> dict:
+    __init__(data: Any) -> dict:
         Initializes the ChannelInformation object with data from a neo.io object.
 
     to_dict() -> dict:
@@ -52,7 +53,7 @@ class ChannelInformation:
         Counts the occurrences of unique values in the channel information attributes.
     """
 
-    def __init__(self, data: any) -> dict:
+    def __init__(self, data: Any = None) -> None:
         type_out = []
         channel_list = []
         signal_type = []
@@ -64,70 +65,72 @@ class ChannelInformation:
         voltage_index = 0
         current_index = 0
 
-        if isinstance(data, neo.io.winwcpio.WinWcpIO):
-            analogsignals = data.read_block().segments[0].analogsignals
-            for i in data.header["signal_channels"]:
-                if len(findall(r"Vm\(AC\)", i[0])) == 1:
-                    type_out.append("field")
-                    signal_type.append("voltage")
-                    array_index.append(voltage_index)
-                    voltage_index += 1
-                elif len(findall(r"Vm", i[0])) == 1:
-                    type_out.append("cell")
-                    signal_type.append("voltage")
-                    array_index.append(voltage_index)
-                    voltage_index += 1
-                elif len(findall(r"Im", i[0])) == 1:
-                    type_out.append("cell")
-                    signal_type.append("current")
-                    array_index.append(current_index)
-                    current_index += 1
-                channel_groups.append(i["stream_id"].astype(int).tolist())
-                clamp_type.append(
-                    _is_clamp(analogsignals[channel_index].magnitude.squeeze())
-                )
-                channel_index += 1
-                channel_list.append(channel_index)
-                channel_unit.append(str(i["units"]))
-        elif isinstance(data, neo.io.axonio.AxonIO):
-            analogsignals = data.read_block().segments[0].analogsignals
-            for i in data.header["signal_channels"]:
-                if len(findall(r"V", i[4])) == 1:
-                    type_out.append("cell")
-                    signal_type.append("voltage")
-                    array_index.append(voltage_index)
-                    voltage_index += 1
-                elif len(findall(r"A", i[4])) == 1:
-                    type_out.append("cell")
-                    signal_type.append("current")
-                    array_index.append(current_index)
-                    current_index += 1
-                channel_groups.append(i["stream_id"].astype(int).tolist())
-                clamp_type.append(
-                    _is_clamp(analogsignals[channel_index].magnitude.squeeze())
-                )
-                channel_index += 1
-                channel_list.append(channel_index)
-                channel_unit.append(str(i["units"]))
-        elif isinstance(data, neo.io.igorproio.IgorIO):
-            pass
-        if len(channel_list) > 0:
-            self.channel_number = np.array(channel_list)
-            self.array_index = np.array(array_index)
-            self.recording_type = np.array(type_out)
-            self.signal_type = np.array(signal_type)
-            self.clamped = np.array(clamp_type)
-            self.channel_grouping = np.array(channel_groups)
-            self.unit = np.array(channel_unit)
-        else:
-            self.channel_number = None
-            self.array_index = None
-            self.recording_type = None
-            self.signal_type = None
-            self.clamped = None
-            self.channel_grouping = None
-            self.unit = None
-            print("No channel information found.")
+        self.channel_number = np.array([])
+        self.array_index = np.array([])
+        self.recording_type = np.array([])
+        self.signal_type = np.array([])
+        self.clamped = np.array([])
+        self.channel_grouping = np.array([])
+        self.unit = np.array([])
+    
+        if data is not None:
+            if isinstance(data, neo.io.winwcpio.WinWcpIO):
+                analogsignals = data.read_block().segments[0].analogsignals
+                for i in data.header["signal_channels"]:
+                    if len(findall(r"Vm\(AC\)", i[0])) == 1:
+                        type_out.append("field")
+                        signal_type.append("voltage")
+                        array_index.append(voltage_index)
+                        voltage_index += 1
+                    elif len(findall(r"Vm", i[0])) == 1:
+                        type_out.append("cell")
+                        signal_type.append("voltage")
+                        array_index.append(voltage_index)
+                        voltage_index += 1
+                    elif len(findall(r"Im", i[0])) == 1:
+                        type_out.append("cell")
+                        signal_type.append("current")
+                        array_index.append(current_index)
+                        current_index += 1
+                    channel_groups.append(i["stream_id"].astype(int).tolist())
+                    clamp_type.append(
+                        _is_clamp(analogsignals[channel_index].magnitude.squeeze())
+                    )
+                    channel_index += 1
+                    channel_list.append(channel_index)
+                    channel_unit.append(str(i["units"]))
+            elif isinstance(data, neo.io.axonio.AxonIO):
+                analogsignals = data.read_block().segments[0].analogsignals
+                for i in data.header["signal_channels"]:
+                    if len(findall(r"V", i[4])) == 1:
+                        type_out.append("cell")
+                        signal_type.append("voltage")
+                        array_index.append(voltage_index)
+                        voltage_index += 1
+                    elif len(findall(r"A", i[4])) == 1:
+                        type_out.append("cell")
+                        signal_type.append("current")
+                        array_index.append(current_index)
+                        current_index += 1
+                    channel_groups.append(i["stream_id"].astype(int).tolist())
+                    clamp_type.append(
+                        _is_clamp(analogsignals[channel_index].magnitude.squeeze())
+                    )
+                    channel_index += 1
+                    channel_list.append(channel_index)
+                    channel_unit.append(str(i["units"]))
+            elif isinstance(data, neo.io.igorproio.IgorIO):
+                pass
+            if len(channel_list) > 0:
+                self.channel_number = np.array(channel_list)
+                self.array_index = np.array(array_index)
+                self.recording_type = np.array(type_out)
+                self.signal_type = np.array(signal_type)
+                self.clamped = np.array(clamp_type)
+                self.channel_grouping = np.array(channel_groups)
+                self.unit = np.array(channel_unit)
+            else:
+                print("No channel information found.")
 
     def to_dict(self) -> dict:
         """
@@ -301,12 +304,12 @@ class VoltageTrace:
 
         check_clamp(self, quick_check, warnings)
 
-    def channel_average(self, sweep_subset: any = None) -> None:
+    def channel_average(self, sweep_subset: Any = None) -> None:
         """
         Calculate the channel average for a given subset of sweeps.
 
         Parameters:
-            sweep_subset (any, optional): A subset of sweeps to be averaged. If None,
+            sweep_subset (Any, optional): A subset of sweeps to be averaged. If None,
             the entire set of sweeps will be used. Defaults to None.
 
         Returns:
@@ -431,12 +434,12 @@ class CurrentTrace:
 
         check_clamp(self, quick_check, warnings)
 
-    def channel_average(self, sweep_subset: any = None) -> None:
+    def channel_average(self, sweep_subset: Any = None) -> None:
         """
         Calculate the channel average for a given subset of sweeps.
 
         Parameters:
-            sweep_subset (any, optional): A subset of sweeps to be averaged. If None,
+            sweep_subset (Any, optional): A subset of sweeps to be averaged. If None,
             the entire set of sweeps will be used. Defaults to None.
 
         Returns:
@@ -457,18 +460,18 @@ class Trace:
         file_path (str): The file path of the trace.
 
     Methods:
-        copy() -> any:
+        copy() -> Any:
             Returns a deep copy of the Trace object.
 
-        subset(channels: any = all channels, can be a list,
-               signal_type: any = 'voltage' and 'current',
-               rec_type: any = all rec_types) -> any:
+        subset(channels: Any = all channels, can be a list,
+               signal_type: Any = 'voltage' and 'current',
+               rec_type: Any = all rec_types) -> Any:
             Returns a subset of the Trace object based on the specified channels, signal_type, and
             rec_type.
 
-        average_trace(channels: any = all channels, can be a list,
-                      signal_type: any = 'voltage' and 'current', can be a list,
-                      rec_type: any = all rec_types) -> any:
+        average_trace(channels: Any = all channels, can be a list,
+                      signal_type: Any = 'voltage' and 'current', can be a list,
+                      rec_type: Any = all rec_types) -> Any:
             Returns the average trace of the Trace object based on the specified channels,
             signal_type, and rec_type.
 
@@ -480,12 +483,12 @@ class Trace:
 
     def __init__(self, file_path: str, quick_check: bool = True) -> None:
         self.file_path = file_path
-        self.voltage = None
-        self.current = None
-        self.time = None
+        self.voltage = np.array([])
+        self.current = np.array([])
+        self.time = Quantity(np.array([]), units="s")
         self.sampling_rate = None
-        self.channel = None
-        self.channel_information = None
+        self.channel = np.array([])
+        self.channel_information = ChannelInformation()
         self.sweep_count = None
         if file_path.endswith(".wcp"):
             from ephys.classes.class_functions import (
@@ -502,7 +505,7 @@ class Trace:
         else:
             print("File type not supported")
 
-    def copy(self) -> any:
+    def copy(self) -> Any:
         """
         Returns a deep copy of the Trace object.
         """
@@ -510,33 +513,33 @@ class Trace:
 
     def subset(
         self,
-        channels: any = None,
-        signal_type: any = None,
-        rec_type: any = "",
-        clamp_type: any = None,
-        channel_groups: any = None,
-        sweep_subset: any = None,
+        channels: Any = None,
+        signal_type: Any = None,
+        rec_type: Any = "",
+        clamp_type: Any = None,
+        channel_groups: Any = None,
+        sweep_subset: Any = None,
         subset_index_only: bool = False,
         in_place: bool = False,
-    ) -> any:
+    ) -> Any:
         """
         Subset the experiment object based on specified criteria.
 
         Args:
-            channels (any, optional): Channels to include in the subset.
+            channels (Any, optional): Channels to include in the subset.
                                       Defaults to all channels.
-            signal_type (any, optional): Types of signal_type to include in the subset.
+            signal_type (Any, optional): Types of signal_type to include in the subset.
                                    Defaults to ['voltage', 'current'].
-            rec_type (any, optional): Recording types to include in the subset. Defaults to ''.
-            clamp_type (any, optional): Clamp types to include in the subset. Defaults to None.
-            channel_groups (any, optional): Channel groups to include in the subset. Defaults to None.
-            sweep_subset (any, optional): Sweeps to include in the subset. Possible inputs can be list,
+            rec_type (Any, optional): Recording types to include in the subset. Defaults to ''.
+            clamp_type (Any, optional): Clamp types to include in the subset. Defaults to None.
+            channel_groups (Any, optional): Channel groups to include in the subset. Defaults to None.
+            sweep_subset (Any, optional): Sweeps to include in the subset. Possible inputs can be list,
                                     arrays or slice(). Defaults to None.
             subset_index_only (bool, optional): If True, returns only the subset index. Defaults to False.
             in_place (bool, optional): If True, modifies the object in place. Defaults to False.
 
         Returns:
-            any: Subset of the experiment object.
+            Any: Subset of the experiment object.
 
         """
         if (
@@ -626,7 +629,7 @@ class Trace:
                         sweep_subset, :
                     ]
                 else:
-                    subset_trace.channel.pop(channel_index)
+                    subset_trace.channel = np.delete(subset_trace.channel, channel_index)
             subset_trace.time = subset_trace.time[sweep_subset, :]
         else:
             subset_trace.channel_information.channel_number = np.array([])
@@ -648,7 +651,7 @@ class Trace:
         cumulative: bool = False,
         stimulus_interval: float = 0.0,
         overwrite_time: bool = True,
-    ) -> any:
+    ) -> Any:
         """
         Set the time axis for the given trace data.
 
@@ -703,13 +706,13 @@ class Trace:
     def subtract_baseline(
         self,
         window: tuple = (0, 0.1),
-        channels: any = None,
-        signal_type: any = None,
+        channels: Any = None,
+        signal_type: Any = None,
         rec_type: str = "",
         median: bool = False,
         overwrite: bool = False,
-        sweep_subset: any = None,
-    ) -> any:
+        sweep_subset: Any = None,
+    ) -> Any:
         """
         Subtracts the baseline from the signal within a specified time window.
 
@@ -719,10 +722,10 @@ class Trace:
         window : tuple, optional
             A tuple specifying the start and end of the time window for baseline
             calculation (default is (0, 0.1)).
-        channels : any, optional
+        channels : Any, optional
             The channels to be processed. If None, all channels are processed
             (default is None).
-        signal_type : any, optional
+        signal_type : Any, optional
             The type of signal to be processed (e.g., 'voltage' or 'current').
             If None, all signal types are processed (default is None).
         rec_type : str, optional
@@ -736,7 +739,7 @@ class Trace:
             returned (default is False).
 
         Returns:
-        any
+        Any
             If overwrite is False, returns a copy of the data with the baseline
             subtracted. If overwrite is True, returns None.
         """
@@ -828,15 +831,15 @@ class Trace:
     def window_function(
         self,
         window: list = [(0, 0)],
-        channels: any = None,
-        signal_type: any = None,
+        channels: Any = None,
+        signal_type: Any = None,
         rec_type: str = "",
         function: str = "mean",
         label: str = "",
-        sweep_subset: any = None,
+        sweep_subset: Any = None,
         return_output: bool = False,
         plot=False,
-    ) -> any:
+    ) -> Any:
         """
         Apply a specified function to a subset of channels within given time windows.
 
@@ -844,9 +847,9 @@ class Trace:
         -----------
         window : list, optional
             List of tuples specifying the start and end of each window. Default is [(0, 0)].
-        channels : any, optional
+        channels : Any, optional
             Channels to be included in the subset. Default is None.
-        signal_type : any, optional
+        signal_type : Any, optional
             Type of signal to be included in the subset. Default is None.
         rec_type : str, optional
             Type of recording to be included in the subset. Default is an empty string.
@@ -860,7 +863,7 @@ class Trace:
 
         Returns:
         --------
-        any
+        Any
             The output of the applied function if return_output is True, otherwise None.
 
         Notes:
@@ -909,24 +912,24 @@ class Trace:
 
     def average_trace(
         self,
-        channels: any = None,
-        signal_type: any = None,
-        rec_type: any = "",
-        sweep_subset: any = None,
+        channels: Any = None,
+        signal_type: Any = None,
+        rec_type: Any = "",
+        sweep_subset: Any = None,
         in_place: bool = True,
-    ) -> any:
+    ) -> Any:
         """
         Calculates the average trace for the given channels, signal_type types, and recording type.
 
         Parameters:
-        - channels (any): The channels to calculate the average trace for.
+        - channels (Any): The channels to calculate the average trace for.
           If None, uses the first channel type.
-        - signal_type (any): The signal_type types to calculate the average trace for.
+        - signal_type (Any): The signal_type types to calculate the average trace for.
           Defaults to ['voltage', 'current'].
-        - rec_type (any): The recording type to calculate the average trace for.
+        - rec_type (Any): The recording type to calculate the average trace for.
 
         Returns:
-        - any: The average trace object.
+        - Any: The average trace object.
 
         """
         if channels is None:
@@ -966,7 +969,7 @@ class Trace:
         alpha: float = 0.5,
         avg_color: str = "red",
         align_onset: bool = True,
-        sweep_subset: any = None,
+        sweep_subset: Any = None,
         window: tuple = (0, 0),
         xlim: tuple = None,
         show: bool = True,
@@ -986,7 +989,7 @@ class Trace:
             alpha (float, optional): The transparency of the individual traces. Defaults to 0.5.
             avg_color (str, optional): The color of the average trace. Defaults to 'red'.
             align_onset (bool, optional): Whether to align the traces on the onset. Defaults to True.
-            sweep_subset (any, optional): The subset of sweeps to plot. Defaults to None.
+            sweep_subset (Any, optional): The subset of sweeps to plot. Defaults to None.
             window (tuple, optional): The time window to plot. Defaults to (0, 0).
             show (bool, optional): Whether to display the plot. Defaults to True.
             return_fig (bool, optional): Whether to return the figure. Defaults to False.
@@ -1104,14 +1107,14 @@ class ChannelAverage:
 
     Methods:
     --------
-    __init__(trace: VoltageTrace | CurrentTrace, sweep_subset: any = None) -> None
+    __init__(trace: VoltageTrace | CurrentTrace, sweep_subset: Any = None) -> None
         Initializes the ChannelAverage object and calculates the average trace.
 
     Parameters:
     -----------
     trace : VoltageTrace | CurrentTrace
         An object containing the voltage or current trace data.
-    sweep_subset : any, optional
+    sweep_subset : Any, optional
         A subset of sweeps to use for calculating the average trace. If None, all sweeps are used.
 
     Raises:
@@ -1121,7 +1124,7 @@ class ChannelAverage:
     """
 
     def __init__(
-        self, trace: VoltageTrace | CurrentTrace, sweep_subset: any = None
+        self, trace: VoltageTrace | CurrentTrace, sweep_subset: Any = None
     ) -> None:
         self.trace = None
         self.sweeps_used = None
@@ -1151,7 +1154,7 @@ class FunctionOutput:
         __init__(self, function_name: str) -> None:
             Initializes the FunctionOutput object with the given function name.
 
-        append(self, trace: Trace, window: tuple, channels: any = None, signal_type: any = None,
+        append(self, trace: Trace, window: tuple, channels: Any = None, signal_type: Any = None,
                rec_type: str = '', avg_window_ms: float = 1.0, label: str = '') -> None:
             Appends measurements and related information from the given trace data to the
             FunctionOutput object.
@@ -1191,8 +1194,8 @@ class FunctionOutput:
         self,
         trace: Trace,
         window: tuple,
-        channels: any = None,
-        signal_type: any = None,
+        channels: Any = None,
+        signal_type: Any = None,
         rec_type: str = "",
         avg_window_ms: float = 1.0,
         label: str = "",
@@ -1207,9 +1210,9 @@ class FunctionOutput:
             The trace object containing the data to be analyzed.
         window : tuple
             A tuple specifying the start and end times of the window for measurement.
-        channels : any, optional
+        channels : Any, optional
             The channels to be included in the subset of the trace. Default is None.
-        signal_type : any, optional
+        signal_type : Any, optional
             The type of signal to be included in the subset of the trace. Default is None.
         rec_type : str, optional
             The recording type to be included in the subset of the trace. Default is an
@@ -1584,7 +1587,7 @@ class MetaData:
     def __init__(
         self, file_path: str | list, experimenter: str | list = "unknown"
     ) -> None:
-        self.file_info = None
+        self.file_info = np.array([])
         self.add_file_info(file_path, experimenter, add=False)
 
     def add_file_info(
@@ -1627,9 +1630,9 @@ class MetaData:
             )
             print("Date of Experiment estimated. Please check for correct date.")
         if add:
-            self.file_info = np.append(self.file_info.tolist(), file_list)
+            self.file_info = np.append(self.file_info, np.array(file_list))
             self.experiment_info = np.append(
-                self.experiment_info.tolist(), experiment_list
+                self.experiment_info, np.array(experiment_list)
             )
         else:
             self.file_info = np.array(file_list)
@@ -1669,9 +1672,10 @@ class ExpData:
 
     def __init__(self, file_path: str | list, experimenter: str = "unknown", sort: bool = True) -> None:
         self.protocols = []
-        self.meta_data = []
         if isinstance(file_path, str):
             self.protocols.append(Trace(file_path))
+            self.meta_data = MetaData(file_path, experimenter)
+
         elif isinstance(file_path, list):
             loaded_files = []
             for file_index, file in enumerate(file_path):
@@ -1685,7 +1689,7 @@ class ExpData:
                     print(f"Error loading file {file}: {e}")
                     print("Skipping file.")
                     continue
-        self.meta_data = MetaData(loaded_files, experimenter)
+            self.meta_data = MetaData(loaded_files, experimenter)
         if sort:
             self.sort_by_date()
     
@@ -1693,11 +1697,11 @@ class ExpData:
         """
         Sorts the protocols by the date of the experiment.
         """
-        dates = [experiment_info["date_of_experiment"] for experiment_info in self.meta_data.experiment_info]
-        sorted_indices = sorted(range(len(dates)), key=lambda i: dates[i])
+        dates = np.array([experiment_info["date_of_experiment"] for experiment_info in self.meta_data.experiment_info])
+        sorted_indices = np.argsort(dates)
         self.protocols = [self.protocols[i] for i in sorted_indices]
-        self.meta_data.file_info = [self.meta_data.file_info[i] for i in sorted_indices]
-        self.meta_data.experiment_info = [self.meta_data.experiment_info[i] for i in sorted_indices]
+        self.meta_data.file_info = self.meta_data.file_info[sorted_indices]
+        self.meta_data.experiment_info = self.meta_data.experiment_info[sorted_indices]
     
     def meta_data_summary(self, to_dataframe: bool = True) -> dict | pd.DataFrame:
         """
