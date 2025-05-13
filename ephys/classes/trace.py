@@ -17,7 +17,7 @@ Dependencies:
     - ephys.classes.class_functions
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import Any
 from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,20 +25,16 @@ from matplotlib.axes import Axes
 from quantities import Quantity
 
 from ephys import utils
-from ephys.classes.class_functions import _get_sweep_subset, _get_time_index
-# Removed unused imports: VoltageTrace, CurrentTrace
 from ephys.classes.class_functions import (
+    _get_sweep_subset,
+    _get_time_index,
     wcp_trace_new,
     wcp_trace_old,
-)  # pylint: disable=import-outside-toplevel
-from ephys.classes.class_functions import (
     abf_trace,
 )  # pylint: disable=import-outside-toplevel
+from ephys.classes.channels import ChannelInformation
+from ephys.classes.window_functions import FunctionOutput
 
-
-if TYPE_CHECKING:
-    from ephys.classes.channels import ChannelInformation
-    # Removed unused imports: ChannelInformation, FunctionOutput
 
 class Trace:
     """
@@ -73,9 +69,6 @@ class Trace:
     """
 
     def __init__(self, file_path: str, quick_check: bool = True) -> None:
-        from ephys.classes.channels import ChannelInformation
-        from ephys.classes.window_functions import FunctionOutput
-
         self.file_path = file_path
         self.voltage = np.array([])
         self.current = np.array([])
@@ -472,8 +465,6 @@ class Trace:
         ------
         The function updates the `window_summary` attribute of the class with the output.
         """
-
-        from ephys.classes.window_functions import FunctionOutput
 
         if window is None:
             window = [(0, 0)]
