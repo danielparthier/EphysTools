@@ -1,15 +1,15 @@
 """
-This module defines classes for handling current traces and current clamping in electrophysiology 
+This module defines classes for handling current traces and current clamping in electrophysiology
 experiments.
 
 Classes:
 ---------
 CurrentTrace:
-    Represents a current trace in electrophysiology experiments. It provides methods to manipulate 
+    Represents a current trace in electrophysiology experiments. It provides methods to manipulate
     and analyze the trace data, including changing units and checking clamping status.
 
 CurrentClamp:
-    Handles current clamping operations using a CurrentTrace instance. It provides methods to 
+    Handles current clamping operations using a CurrentTrace instance. It provides methods to
     manipulate the current data and change its unit.
 
 Dependencies:

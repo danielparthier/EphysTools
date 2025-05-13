@@ -1,16 +1,16 @@
 """
-This module defines classes for handling voltage traces and voltage clamping in electrophysiology 
+This module defines classes for handling voltage traces and voltage clamping in electrophysiology
 experiments.
 
 Classes:
 ---------
 VoltageTrace:
-    Represents a voltage trace in electrophysiology experiments. It provides methods to manipulate 
-    and analyze the trace data, including changing units, inserting data, and checking clamping 
+    Represents a voltage trace in electrophysiology experiments. It provides methods to manipulate
+    and analyze the trace data, including changing units, inserting data, and checking clamping
     status.
 
 VoltageClamp:
-    Handles voltage clamping operations using a VoltageTrace instance. It provides methods to 
+    Handles voltage clamping operations using a VoltageTrace instance. It provides methods to
     manipulate the voltage data and change its unit.
 
 Dependencies:
