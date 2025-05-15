@@ -89,7 +89,7 @@ class VoltageTrace(Channel):
         else:
             raise ValueError("Unit must be voltage.")
 
-class VoltageClamp:
+class VoltageClamp(Channel):
     """
     VoltageClamp handles voltage clamping operations using a VoltageTrace instance.
 

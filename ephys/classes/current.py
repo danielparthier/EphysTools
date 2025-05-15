@@ -75,7 +75,7 @@ class CurrentTrace(Channel):
             raise ValueError("Unit must be current.")
 
 
-class CurrentClamp:
+class CurrentClamp(Channel):
     """
     CurrentClamp handles current clamping operations using a CurrentTrace instance.
 
