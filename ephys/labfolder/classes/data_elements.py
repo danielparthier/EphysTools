@@ -55,6 +55,7 @@ class DataElement:
         self.type = 'DATA'
         self.element_id = element_id
         self.description = description
+
     def load_data(self, user_info: LabFolderUserInfo, element_id=''):
         """
         Loads data for the specified element ID from the LabFolder API and updates the object's attributes.
@@ -79,6 +80,7 @@ class DataElement:
         data = requests.get(f"{user_info.API_address}elements/data/{element_id}", headers=user_info.auth_token).json()
         self.description = data['description']
         self.element_id = data['id']
+
     def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
         """
         Writes the current data element to Labfolder using the provided user information and entry ID.
@@ -114,6 +116,7 @@ class DataElement:
                 f"Data could not be written to Labfolder. Status code: {response.status_code}"
             )
             print(response.text)
+
     def update_on_labfolder(self, user_info: LabFolderUserInfo):
         """
         Updates the description of the data element on Labfolder via a PUT request.
@@ -209,6 +212,7 @@ class DescriptiveDataElement:
             A dictionary containing the type, title, and description of the object.
         """
         return {'type': self.type,'title': self.title, 'description': self.description}
+    
     def __repr__(self):
         """
         Return a string representation of the DataElement instance, including its type, title,
@@ -467,6 +471,7 @@ class TextElement:
         self.type = 'TEXT'
         self.element_id = element_id
         self.content = content
+
     def load_text(self, user_info: LabFolderUserInfo, element_id=''):
         """
         Load the text content of a data element from the LabFolder API.
@@ -496,6 +501,7 @@ class TextElement:
         text = requests.get(f"{user_info.API_address}elements/text/{element_id}", headers=user_info.auth_token).json()
         self.content = text['content']
         self.element_id = text['id']
+
     def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
         """
         Writes the content of the object to Labfolder as a text element.
@@ -529,6 +535,7 @@ class TextElement:
         else:
             print(f"Text could not be written to Labfolder. Status code: {response.status_code}")
             print(response.text)
+
     def update_on_labfolder(self, user_info: LabFolderUserInfo):
         """
         Updates the text content of the element on Labfolder using the provided user information.
@@ -651,6 +658,7 @@ class DataElementGroup:
         None
         """
         self.children.append(child)
+
     def to_dict(self):
         """
         Convert the object and its children into a dictionary representation.
@@ -661,6 +669,7 @@ class DataElementGroup:
             A dictionary containing the object's type, title, and a list of its children's dictionary representations.
         """
         return {'type': self.type, 'title': self.title, 'children': [child.to_dict() for child in self.children]}
+    
     def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
         """
         Write the data element to Labfolder by creating a new data element group.
@@ -695,6 +704,7 @@ class DataElementGroup:
         else:
             print(f"Data element group could not be written to Labfolder. Status code: {response.status_code}")
             print(response.text)
+
     def update_on_labfolder(self, user_info: LabFolderUserInfo):
         """
         Update the data element group on Labfolder using the provided user information.
@@ -728,6 +738,7 @@ class DataElementGroup:
             print(f"Data element group updated on Labfolder.")
         else:
             print(f"Data element group could not be updated on Labfolder. Status code: {response.status_code}")
+            
     def __labfolder_dict__(self):
         """
         Generate a dictionary representation of the object for labfolder export.
@@ -938,6 +949,7 @@ class TableElement:
         else:
             print(f"Table {self.title} could not be written to Labfolder. Status code: {response.status_code}")
             print(response.text)
+
     def update_on_labfolder(self, user_info: LabFolderUserInfo, header=True):
         """
         Updates the table element on Labfolder using the provided user information.
@@ -975,6 +987,7 @@ class TableElement:
         else:
             print(f"Table {self.title} could not be updated on Labfolder. Status code: {response.status_code}")
             print(response.text)
+
     def table_to_pd(self, header=True, in_place=True):
         """
         Converts the internal table representation to pandas DataFrames.
@@ -1002,6 +1015,7 @@ class TableElement:
             print("Table already converted to pandas DataFrame.")
             print(self.table)
             return None
+        
         def table_to_pandas(table, header: bool):
             """
             Converts a nested dictionary table structure to a pandas DataFrame.
@@ -1080,6 +1094,7 @@ class TableElement:
         if self.table is None:
             self.table = {}
         self.table.update({sheet_name: table})
+        
     def table_to_dict(self):
         """
         Converts all pandas DataFrame objects in the `self.table` dictionary to dictionaries.
