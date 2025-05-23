@@ -119,9 +119,11 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
         if unit_string.find("V") != -1:
             trace_insert = VoltageTrace(segment_len, trace_len, unit_string)
             trace_insert.channel_number = channel_index + 1
+            trace_insert.sampling_rate = trace.sampling_rate
         elif unit_string.find("A") != -1:
             trace_insert = CurrentTrace(segment_len, trace_len, unit_string)
             trace_insert.channel_number = channel_index + 1
+            trace_insert.sampling_rate = trace.sampling_rate
         else:
             raise ValueError("Signal type not recognized")
         for segment_index, segment in enumerate(data_block.segments):
@@ -138,6 +140,7 @@ def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
                 trace_insert = VoltageClamp(channel=trace_insert)
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
+        trace_insert.starting_time = Quantity(trace.time[:,0], time_unit)
         trace.channel.append(trace_insert)
     if quick_check:
         print("Warning: Quick clamp check might not be accurate.")
@@ -178,8 +181,12 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
         unit_string = str(reader.header["signal_channels"][channel_index]["units"])
         if unit_string.find("V") != -1:
             trace_insert = VoltageTrace(segment_len, trace_len, unit_string)
+            trace_insert.channel_number = channel_index + 1
+            trace_insert.sampling_rate = trace.sampling_rate
         elif unit_string.find("A") != -1:
             trace_insert = CurrentTrace(segment_len, trace_len, unit_string)
+            trace_insert.channel_number = channel_index + 1
+            trace_insert.sampling_rate = trace.sampling_rate
         else:
             raise ValueError("Signal type not recognized")
         for segment_index, segment in enumerate(data_block.segments):
