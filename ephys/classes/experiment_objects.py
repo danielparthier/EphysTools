@@ -13,22 +13,6 @@ from ephys.classes.trace import Trace
 
 mplstyle.use("fast")
 
-
-class Events:
-    """
-    A class to handle events in electrophysiological data.
-    Attributes:
-        trace (Trace): The trace object associated with the events.
-        events (list): A list to store event data.
-        event_times (list): A list to store event times.
-    """
-
-    def __init__(self, trace: Trace) -> None:
-        self.trace = trace
-        self.events = []
-        self.event_times = []
-
-
 class MetaData:
     """
     A class representing metadata for experiment files.
@@ -55,11 +39,12 @@ class MetaData:
     """
 
     def __init__(
-        self, file_path: str | list, experimenter: str | list = "unknown"
+        self, file_path: str | list = "", experimenter: str | list = "unknown"
     ) -> None:
         self.file_info = np.array([])
         self.experiment_info = np.array([])
-        self.add_file_info(file_path, experimenter, add=False)
+        if file_path != "":
+            self.add_file_info(file_path, experimenter, add=False)
 
 
     def add_file_info(
@@ -147,6 +132,7 @@ class ExpData:
         self, file_path: str | list, experimenter: str = "unknown", sort: bool = True
     ) -> None:
         self.protocols = []
+        self.meta_data = MetaData()
         if isinstance(file_path, str):
             self.protocols.append(Trace(file_path))
             self.meta_data = MetaData(file_path, experimenter)
