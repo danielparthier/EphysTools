@@ -65,6 +65,8 @@ class Channel:
         self.channel_number: int | None = None
         self.average: ChannelAverage | None = None
         self.clamped: bool | None = None
+        self.sampling_rate: Quantity = Quantity(0, "Hz")
+        self.starting_time: Quantity = Quantity(np.zeros(self.sweep_count), "s")
         self.check_clamp()
 
     def insert_data(self, data: np.ndarray, sweep_count: int) -> None:
