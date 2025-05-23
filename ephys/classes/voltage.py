@@ -27,6 +27,7 @@ Dependencies:
 #from quantities import Quantity
 #from ephys.classes.class_functions import _get_sweep_subset, check_clamp
 from ephys.classes.channels import Channel
+from ephys.classes.action_potentials import ActionPotentials
 
 
 class VoltageTrace(Channel):
@@ -88,6 +89,22 @@ class VoltageTrace(Channel):
             self.unit = unit
         else:
             raise ValueError("Unit must be voltage.")
+
+    def detect_action_potentials(self, detection_threshold: float = 0.0, window_len: float = 8.0) -> None:
+        """
+        Detects action potentials in the voltage data based on a specified threshold.
+
+        Parameters:
+        detection_threshold (float): The threshold for detecting action potentials.
+        window_len (float): The length of the window for detecting action potentials.
+
+        Returns:
+        None
+        """
+        self.APs = ActionPotentials(voltage_channel=self,
+                                    detection_threshold=detection_threshold,
+                                    window_len=window_len)
+
 
 class VoltageClamp(Channel):
     """
