@@ -3,11 +3,38 @@ This module provides utility functions for pattern matching in strings.
 It includes functions to check if elements in a list or numpy array match a
 given pattern.
 """
-
+from typing import Any
 from re import compile as compile_regex
 from matplotlib import colormaps
 from matplotlib.colors import is_color_like
 import numpy as np
+
+
+def color_picker(length: int, index: int, color: str = "black") -> str | np.ndarray:
+    """
+    Selects a color from a colormap or validates a given color string.
+
+    Parameters:
+    length (int): Number of colors in the colormap.
+    index (int): Index of the color to select.
+    color (str): Name of the colormap or a color string. Defaults to 'black'.
+
+    Returns:
+    str | np.ndarray: The selected color.
+
+    Notes:
+    - Defaults to 'viridis' colormap if the color is invalid.
+    """
+    if color in colormaps.keys():
+        color_map = colormaps[color]
+        color = color_map(np.linspace(0, 1, length))[index]
+    elif is_color_like(color):
+        pass
+    else:
+        print("Invalid color. Default to 'viridis'.")
+        color_map = colormaps["viridis"]
+        color = color_map(np.linspace(0, 1, length))[index]
+    return color
 
 
 def trace_color(
@@ -19,24 +46,15 @@ def trace_color(
     Parameters:
         traces (np.ndarray): The array of traces.
         index (int): The index of the trace.
-        color (str): The name of the colormap or a specific color. Default is "black".
+        color (str): The name of the colormap or a specific color. Default is 'black'.
 
     Returns:
         str or np.ndarray: The color for the specified trace.
     """
-    if color in colormaps.keys():
-        color_map = colormaps[color]
-        color = color_map(np.linspace(0, 1, traces.shape[1]))[index]
-    elif is_color_like(color):
-        pass
-    else:
-        print("Invalid color. Default to 'viridis'.")
-        color_map = colormaps["viridis"]
-        color = color_map(np.linspace(0, 1, traces.shape[1]))[index]
-    return color
+    return color_picker(traces.shape[0], index, color)
 
 
-def string_match(pattern: any, string_list: any) -> np.ndarray:
+def string_match(pattern: Any, string_list: Any) -> np.ndarray:
     """
     Check if the given pattern matches any element in the input list.
 

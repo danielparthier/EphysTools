@@ -8,6 +8,7 @@ import re
 import json
 import requests
 
+
 class LabFolderUserInfo:
     """
     A class to represent user information retrieved from Labfolder.
@@ -35,15 +36,20 @@ class LabFolderUserInfo:
         Retrieves and sets the user information from Labfolder API.
     """
 
-    def __init__(self, auth_token: dict, labfolder_url: str) -> None:
+    def __init__(self, auth_token: dict = {}, labfolder_url: str = "") -> None:
         self.auth_token = auth_token
         self.labfolder_url = labfolder_url
-        self._get_user_info()
+        self.API_address = labfolder_url + "/api/v2/"
+        if len(auth_token) > 0 and len(labfolder_url) > 0:
+            self._get_user_info()
+        else:
+            print(
+                "No authentication token or Labfolder URL provided. User information not retrieved."
+            )
 
     def _get_user_info(self):
-        labfolder_api_address = self.labfolder_url + "/api/v2/"
         user_data = requests.get(
-            labfolder_api_address + "me",
+            self.API_address + "me",
             params={"expand": "user"},
             headers=self.auth_token,
             timeout=5,
@@ -54,12 +60,15 @@ class LabFolderUserInfo:
             r"[^A-Z]", "", self.last_name
         )
         self.email = user_data["user"]["email"]
-        self.id = user_data["user"]["id"]
+        self.user_id = user_data["user"]["id"]
         self.location = user_data["user_settings"]["zone_id"]
 
 
 def labfolder_login(
-    labfolder_url: str, user: str = "", password: str = "", allow_input: bool = True
+    labfolder_url: str = "",
+    user: str = "",
+    password: str = "",
+    allow_input: bool = True,
 ) -> LabFolderUserInfo:
     """
     Logs into the Labfolder API and returns user information.
@@ -67,9 +76,9 @@ def labfolder_login(
     Args:
         labfolder_url (str): The base URL of the Labfolder instance.
         user (str, optional): The user's email address. If not provided, the
-        function will prompt for it. Defaults to "".
+        function will prompt for it. Defaults to ''.
         password (str, optional): The user's password. If not provided, the
-        function will prompt for it. Defaults to "".
+        function will prompt for it. Defaults to ''.
 
     Returns:
         LabFolderUserInfo: An instance of LabFolderUserInfo containing the authentication token
@@ -105,25 +114,44 @@ def labfolder_login(
             "Username or password incorrect.\nLogin failed. Status code: "
             + str(response.status_code)
         )
-        user_auth = None
+        user_auth = LabFolderUserInfo()
     elif response.status_code == 400:
         print(
             "Incorrect input.\nLogin failed. Status code: " + str(response.status_code)
         )
-        user_auth = None
+        user_auth = LabFolderUserInfo()
     elif response.status_code == 403:
         print("Blocked login.\nLogin failed. Status code: " + str(response.status_code))
-        user_auth = None
+        user_auth = LabFolderUserInfo()
     elif response.status_code == 200:
         auth_token = {"Authorization": "Bearer " + response.json()["token"]}
         user_auth = LabFolderUserInfo(auth_token, labfolder_url)
         print("Hello " + user_auth.first_name + "!")
     else:
         print("Login failed. Status code: " + str(response.status_code))
-        user_auth = None
+        user_auth = LabFolderUserInfo()
     return user_auth
 
-def labfolder_logout(user: LabFolderUserInfo) -> any:
-        return requests.request("POST", user.labfolder_url + "/api/v2/auth/logout",
-                         headers=user.auth_token,
-                         timeout=5)
+
+def labfolder_logout(user: LabFolderUserInfo) -> None:
+    """
+    Logs out the user from the Labfolder API.
+    Args:
+        user (LabFolderUserInfo): An instance of LabFolderUserInfo containing
+        the authentication token and Labfolder URL.
+    Returns:
+        None: If logout is successful.
+        Prints a message indicating the success or failure of the logout operation.
+    """
+
+    status = requests.request(
+        "POST",
+        user.labfolder_url + "/api/v2/auth/logout",
+        headers=user.auth_token,
+        timeout=5,
+    )
+    if status.status_code == 204:
+        print("Logout successful")
+    else:
+        print("Logout failed. Status code: " + str(status.status_code))
+    
