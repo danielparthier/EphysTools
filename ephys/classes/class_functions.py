@@ -15,75 +15,7 @@ if TYPE_CHECKING:
     from ephys.classes.current import CurrentTrace
     from ephys.classes.channels import ChannelInformation, Channel
 
-
-def wcp_trace_old(trace, file_path: str) -> None:
-    """
-    Reads data from a WinWcp file and populates the given `trace` object with the data.
-
-    Parameters:
-        trace (Trace): The Trace object to populate with the data.
-        file_path (str): The path to the WinWcp file.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-
-    # pylint: disable=import-outside-toplevel
-    from ephys.classes.channels import ChannelInformation
-
-    def read_info(file_path: str, trace: Trace) -> tuple:
-        try:
-            reader = WinWcpIO(file_path)
-        except AttributeError as error:
-            raise AttributeError("Please check the file format.") from error
-        except ValueError as error:
-            raise ValueError("Please check the file path.") from error
-        data_block = reader.read_block()
-        trace_dim = (
-            reader.segment_count(0),
-            len(data_block.segments[0].analogsignals[0]),
-        )
-        trace.sampling_rate = data_block.segments[0].analogsignals[0].sampling_rate
-        trace.channel_information = ChannelInformation(reader)
-        channel_count = trace.channel_information.count()
-        print(trace_dim)
-        trace.voltage = np.zeros(
-            (channel_count["signal_type"].get("voltage", 0), trace_dim[0], trace_dim[1])
-        )
-        trace.current = np.zeros(
-            (channel_count["signal_type"].get("current", 0), trace_dim[0], trace_dim[1])
-        )
-        # trace.time = np.zeros(trace_dim)
-        return data_block, trace_dim
-
-    data_block, trace_dim = read_info(file_path, trace)
-    voltage_channels = np.where(trace.channel_information.signal_type == "voltage")[0]
-    current_channels = np.where(trace.channel_information.signal_type == "current")[0]
-    time = np.zeros(trace_dim)
-    time_unit = "s"
-    for index, segment in enumerate(data_block.segments):
-        if index == 0:
-            time_unit = segment.analogsignals[0].times.units
-        j = 0
-        for voltage_channel in voltage_channels:
-            trace.voltage[j, index, :] = segment.analogsignals[
-                voltage_channel
-            ].magnitude[:, 0]
-            j += 1
-        j = 0
-        for current_channel in current_channels:
-            trace.current[j, index, :] = segment.analogsignals[
-                current_channel
-            ].magnitude[:, 0]
-            j += 1
-        time[index, :] = segment.analogsignals[0].times
-    trace.time = Quantity(time, units=time_unit)
-
-
-def wcp_trace_new(trace, file_path: str, quick_check: bool = True) -> None:
+def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
     """
     Reads data from a WinWcp file and populates the given `trace` object with the data.
 
