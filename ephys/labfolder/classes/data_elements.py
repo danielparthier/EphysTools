@@ -1,15 +1,16 @@
+from copy import deepcopy
 import pandas as pd
 import numpy as np
 import requests
 from PIL import Image
 import matplotlib.pyplot as plt
 from ephys.labfolder.classes.labfolder_access import LabFolderUserInfo
-from copy import deepcopy
 
 
 class DataElement:
     """
-    A class representing a data element in LabFolder, providing methods to load, write, and update data elements via the LabFolder API.
+    A class representing a data element in LabFolder, providing methods to load,
+    write, and update data elements via the LabFolder API.
 
     Parameters
     ----------
@@ -30,7 +31,8 @@ class DataElement:
     Methods
     -------
     load_data(user_info, element_id='')
-        Loads data element information from LabFolder using the provided user information and optional element ID.
+        Loads data element information from LabFolder using the provided user
+        information and optional element ID.
 
     write_to_labfolder(user_info, entry_id='')
         Writes the current data element to LabFolder under the specified entry ID.
@@ -39,9 +41,11 @@ class DataElement:
         Updates the data element's information on LabFolder.
 
     __repr__()
-        Returns a string representation of the DataElement instance, including its type and description.
+        Returns a string representation of the DataElement instance, including
+        its type and description.
     """
-    def __init__(self, element_id='', description=''):
+
+    def __init__(self, element_id="", description=""):
         """
         Initialize a new data element with the specified ID and description.
 
@@ -52,45 +56,53 @@ class DataElement:
         description : str, optional
             A textual description of the data element. Defaults to an empty string.
         """
-        self.type = 'DATA'
+        self.type = "DATA"
         self.element_id = element_id
         self.description = description
 
-    def load_data(self, user_info: LabFolderUserInfo, element_id=''):
+    def load_data(self, user_info: LabFolderUserInfo, element_id=""):
         """
-        Loads data for the specified element ID from the LabFolder API and updates the object's attributes.
+        Loads data for the specified element ID from the LabFolder API and updates
+        the object's attributes.
 
         Parameters
         ----------
         user_info : LabFolderUserInfo
             An object containing user authentication information and API address.
         element_id : str, optional
-            The ID of the data element to load. If not provided, uses the object's `element_id` attribute.
+            The ID of the data element to load. If not provided, uses the object's
+            `element_id` attribute.
 
         Returns
         -------
         None or dict
-            Returns None if no element ID is provided. Otherwise, updates the object's `description` and `element_id` attributes with the retrieved data.
+            Returns None if no element ID is provided. Otherwise, updates the object's
+            `description` and `element_id` attributes with the retrieved data.
         """
-        if element_id == '':
+        if element_id == "":
             element_id = self.element_id
-        if element_id == '':
+        if element_id == "":
             print("No data ID provided.")
             return None
-        data = requests.get(f"{user_info.API_address}elements/data/{element_id}", headers=user_info.auth_token).json()
-        self.description = data['description']
-        self.element_id = data['id']
+        data = requests.get(
+            f"{user_info.API_address}elements/data/{element_id}",
+            headers=user_info.auth_token,
+        ).json()
+        self.description = data["description"]
+        self.element_id = data["id"]
 
-    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
+    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id=""):
         """
-        Writes the current data element to Labfolder using the provided user information and entry ID.
+        Writes the current data element to Labfolder using the provided user information
+        and entry ID.
 
         Parameters
         ----------
         user_info : LabFolderUserInfo
             An object containing the user's Labfolder API address and authentication token.
         entry_id : str, optional
-            The ID of the Labfolder entry to which the data element should be written. Default is an empty string.
+            The ID of the Labfolder entry to which the data element should be written.
+            Default is an empty string.
 
         Returns
         -------
@@ -102,15 +114,17 @@ class DataElement:
         On successful write (HTTP 201), sets `self.element_id` to the returned element ID.
         Otherwise, prints an error message and the response text.
         """
-        if entry_id == '':
+        if entry_id == "":
             print("No entry_id provided.")
             return None
-        response = requests.post(f"{user_info.API_address}elements/data",
-                                 headers=user_info.auth_token,
-                                 json={'entry_id': entry_id, 'description': self.description})
+        response = requests.post(
+            f"{user_info.API_address}elements/data",
+            headers=user_info.auth_token,
+            json={"entry_id": entry_id, "description": self.description},
+        )
         if response.status_code == 201:
             print(f"Data written to Labfolder.")
-            self.element_id = response.json()['id']
+            self.element_id = response.json()["id"]
         else:
             print(
                 f"Data could not be written to Labfolder. Status code: {response.status_code}"
@@ -133,15 +147,18 @@ class DataElement:
 
         Notes
         -----
-        - If the description is empty, the method prints a message and returns without making a request.
+        - If the description is empty, the method prints a message and returns without
+        making a request.
         - Prints a message indicating whether the update was successful or not.
         """
-        if self.description == '':
+        if self.description == "":
             print("No data to write.")
             return None
-        response = requests.put(f"{user_info.API_address}elements/data/{self.element_id}",
-                                 headers=user_info.auth_token,
-                                 json={'id': self.element_id, 'description': self.description})
+        response = requests.put(
+            f"{user_info.API_address}elements/data/{self.element_id}",
+            headers=user_info.auth_token,
+            json={"id": self.element_id, "description": self.description},
+        )
         if response.status_code == 200:
             print("Data updated on Labfolder.")
         else:
@@ -167,7 +184,8 @@ class DataElement:
 
 class DescriptiveDataElement:
     """
-    A class representing a descriptive data element with a title, unique identifier, and description.
+    A class representing a descriptive data element with a title, unique identifier,
+    and description.
 
     Parameters
     ----------
@@ -196,8 +214,9 @@ class DescriptiveDataElement:
     __repr__()
         Returns a string representation of the data element.
     """
-    def __init__(self, title='', element_id='', description=''):
-        self.type = 'DESCRIPTIVE_DATA_ELEMENT'
+
+    def __init__(self, title="", element_id="", description=""):
+        self.type = "DESCRIPTIVE_DATA_ELEMENT"
         self.title = title
         self.element_id = element_id
         self.description = description
@@ -211,8 +230,8 @@ class DescriptiveDataElement:
         dict
             A dictionary containing the type, title, and description of the object.
         """
-        return {'type': self.type,'title': self.title, 'description': self.description}
-    
+        return {"type": self.type, "title": self.title, "description": self.description}
+
     def __repr__(self):
         """
         Return a string representation of the DataElement instance, including its type, title,
@@ -245,6 +264,7 @@ class FileElement:
     __repr__()
         Returns a string representation of the FileElement instance.
     """
+
     def __init__(self, element_id):
         """
         Initialize a new instance of the class with the specified element ID.
@@ -261,7 +281,7 @@ class FileElement:
         element_id : Any
             The unique identifier for the data element.
         """
-        self.type = 'FILE'
+        self.type = "FILE"
         self.element_id = element_id
 
     def __repr__(self):
@@ -274,6 +294,7 @@ class FileElement:
             A string describing the type and element_id of the DataElement.
         """
         return f"DataElement(type={self.type}, title={self.element_id})"
+
 
 class ImageElement:
     """
@@ -299,7 +320,8 @@ class ImageElement:
     Methods
     -------
     load_image(user_info, element_id='')
-        Loads the image and its metadata from LabFolder using the provided user information and optional element ID.
+        Loads the image and its metadata from LabFolder using the provided user
+        information and optional element ID.
 
     show_image()
         Displays the loaded image using matplotlib.
@@ -307,7 +329,8 @@ class ImageElement:
     __repr__()
         Returns a string representation of the ImageElement instance.
     """
-    def __init__(self, title='', element_id='', original_file_content_type='image/png'):
+
+    def __init__(self, title="", element_id="", original_file_content_type="image/png"):
         """
         Initialize an IMAGE data element with optional metadata.
 
@@ -337,7 +360,7 @@ class ImageElement:
         owner_id : str
             The ID of the owner. Default is an empty string.
         """
-        self.type = 'IMAGE'
+        self.type = "IMAGE"
         self.title = title
         self.element_id = element_id
         self.original_file_content_type = original_file_content_type
@@ -345,7 +368,7 @@ class ImageElement:
         self.image = None
         self.owner_id = ""
 
-    def load_image(self, user_info: LabFolderUserInfo, element_id=''):
+    def load_image(self, user_info: LabFolderUserInfo, element_id=""):
         """
         Loads an image element from the LabFolder API and updates the object's attributes.
 
@@ -354,7 +377,8 @@ class ImageElement:
         user_info : LabFolderUserInfo
             An object containing user authentication information and API address.
         element_id : str, optional
-            The ID of the image element to load. If not provided, uses the object's `element_id` attribute.
+            The ID of the image element to load. If not provided, uses the object's
+            `element_id` attribute.
 
         Returns
         -------
@@ -367,16 +391,23 @@ class ImageElement:
         """
         import io
         from PIL import Image
-        if element_id == '':
+
+        if element_id == "":
             element_id = self.element_id
-        if element_id == '':
+        if element_id == "":
             print("No image ID provided.")
             return None
-        image_info = requests.get(user_info.API_address + f"elements/image/{element_id}", headers=user_info.auth_token).json()
-        image = requests.get(user_info.API_address + f"elements/image/{element_id}/original-data", headers=user_info.auth_token)
-        self.title = image_info['title']
-        self.owner_id = image_info['owner_id']
-        self.creation_date = image_info['creation_date']
+        image_info = requests.get(
+            user_info.API_address + f"elements/image/{element_id}",
+            headers=user_info.auth_token,
+        ).json()
+        image = requests.get(
+            user_info.API_address + f"elements/image/{element_id}/original-data",
+            headers=user_info.auth_token,
+        )
+        self.title = image_info["title"]
+        self.owner_id = image_info["owner_id"]
+        self.creation_date = image_info["creation_date"]
         self.image = Image.open(io.BytesIO(image.content))
         return None
 
@@ -393,11 +424,12 @@ class ImageElement:
             This method does not return any value.
         """
         import matplotlib.pyplot as plt
+
         if self.image is None:
             print("No image to show.")
             return None
         plt.imshow(self.image)
-        plt.axis('off')
+        plt.axis("off")
         plt.show()
         return None
 
@@ -424,9 +456,14 @@ class ImageElement:
         Returns
         -------
         str
-            A string describing the DataElement, including its type, id, title, and original file content type.
+            A string describing the DataElement, including its type, id, title,
+            and original file content type.
         """
-        return f"DataElement(type={self.type}, id={self.element_id}, title={self.title}, original_file_content_type={self.original_file_content_type})"
+        return (
+            f"DataElement(type={self.type}, id={self.element_id}, "
+            f"title={self.title}, original_file_content_type={self.original_file_content_type})"
+        )
+
 
 class TextElement:
     """
@@ -457,7 +494,7 @@ class TextElement:
         Returns a string representation of the TextElement instance.
     """
 
-    def __init__(self, content='', element_id=''):
+    def __init__(self, content="", element_id=""):
         """
         Initialize a new instance of the class.
 
@@ -468,11 +505,11 @@ class TextElement:
         element_id : str, optional
             The unique identifier for the element. Defaults to an empty string.
         """
-        self.type = 'TEXT'
+        self.type = "TEXT"
         self.element_id = element_id
         self.content = content
 
-    def load_text(self, user_info: LabFolderUserInfo, element_id=''):
+    def load_text(self, user_info: LabFolderUserInfo, element_id=""):
         """
         Load the text content of a data element from the LabFolder API.
 
@@ -486,32 +523,39 @@ class TextElement:
         Returns
         -------
         None or dict
-            Returns None if no element ID is provided or if the request fails. Otherwise, updates the instance's
-            `content` and `element_id` attributes with the retrieved data.
+            Returns None if no element ID is provided or if the request fails.
+            Otherwise, updates the instance's `content` and `element_id` attributes
+            with the retrieved data.
 
         Notes
         -----
-        This method sends a GET request to the LabFolder API to retrieve the text content of the specified element.
+        This method sends a GET request to the LabFolder API to retrieve the text
+        content of the specified element.
         """
-        if element_id == '':
+        if element_id == "":
             element_id = self.element_id
-        if element_id == '':
+        if element_id == "":
             print("No text ID provided.")
             return None
-        text = requests.get(f"{user_info.API_address}elements/text/{element_id}", headers=user_info.auth_token).json()
-        self.content = text['content']
-        self.element_id = text['id']
+        text = requests.get(
+            f"{user_info.API_address}elements/text/{element_id}",
+            headers=user_info.auth_token,
+        ).json()
+        self.content = text["content"]
+        self.element_id = text["id"]
 
-    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
+    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id=""):
         """
         Writes the content of the object to Labfolder as a text element.
 
         Parameters
         ----------
         user_info : LabFolderUserInfo
-            An object containing the user's authentication token and API address for Labfolder.
+            An object containing the user's authentication token and API address
+            for Labfolder.
         entry_id : str, optional
-            The ID of the Labfolder entry to which the text will be written. If not provided or empty, the method will not proceed.
+            The ID of the Labfolder entry to which the text will be written. If
+            not provided or empty, the method will not proceed.
 
         Returns
         -------
@@ -520,20 +564,25 @@ class TextElement:
         Notes
         -----
         If the `entry_id` is not provided, the method prints a message and returns `None`.
-        On successful creation (HTTP 201), the method updates the object's `id` attribute with the ID returned by Labfolder.
+        On successful creation (HTTP 201), the method updates the object's `id`
+        attribute with the ID returned by Labfolder.
         Otherwise, it prints an error message with the status code and response text.
         """
-        if entry_id == '':
+        if entry_id == "":
             print("No entry_id provided.")
             return None
-        response = requests.post(f"{user_info.API_address}elements/text",
-                                 headers=user_info.auth_token,
-                                 json={'entry_id': entry_id, 'content': self.content})
+        response = requests.post(
+            f"{user_info.API_address}elements/text",
+            headers=user_info.auth_token,
+            json={"entry_id": entry_id, "content": self.content},
+        )
         if response.status_code == 201:
             print(f"Text written to Labfolder.")
-            self. id = response.json()['id']
+            self.id = response.json()["id"]
         else:
-            print(f"Text could not be written to Labfolder. Status code: {response.status_code}")
+            print(
+                f"Text could not be written to Labfolder. Status code: {response.status_code}"
+            )
             print(response.text)
 
     def update_on_labfolder(self, user_info: LabFolderUserInfo):
@@ -552,22 +601,28 @@ class TextElement:
 
         Notes
         -----
-        If the content is empty, the method prints a message and returns without making a request.
-        Prints the result of the update operation, including the status code and response text if the update fails.
+        If the content is empty, the method prints a message and returns without
+        making a request.
+        Prints the result of the update operation, including the status code and
+        response text if the update fails.
         """
-        if self.content == '':
+        if self.content == "":
             print("No text to write.")
             return None
-        response = requests.put(f"{user_info.API_address}elements/text/{self.element_id}",
-                                 headers=user_info.auth_token,
-                                 json={'id': self.element_id, 'content': self.content})
+        response = requests.put(
+            f"{user_info.API_address}elements/text/{self.element_id}",
+            headers=user_info.auth_token,
+            json={"id": self.element_id, "content": self.content},
+        )
         if response.status_code == 200:
             print("Text updated on Labfolder.")
         else:
-            print(f"Text could not be updated on Labfolder. Status code: {response.status_code}")
+            print(
+                f"Text could not be updated on Labfolder. Status code: {response.status_code}"
+            )
             print(response.text)
         return None
-    
+
     def __repr__(self):
         """
         Return a string representation of the DataElement instance.
@@ -578,6 +633,7 @@ class TextElement:
             A string describing the DataElement, including its type, id, and content.
         """
         return f"DataElement(type={self.type}, id={self.element_id}, content={self.content})"
+
 
 class DataElementGroup:
     """
@@ -614,7 +670,7 @@ class DataElementGroup:
         Returns a string representation of the data element group.
     """
 
-    def __init__(self, title='', children=None):
+    def __init__(self, title="", children=None):
         """
         Initialize a DATA_ELEMENT_GROUP instance.
 
@@ -623,7 +679,8 @@ class DataElementGroup:
         title : str, optional
             The title of the data element group. Defaults to an empty string.
         children : list, optional
-            A list of child elements to be included in the group. If not provided or not a list, an empty list is used.
+            A list of child elements to be included in the group. If not provided
+            or not a list, an empty list is used.
 
         Attributes
         ----------
@@ -636,9 +693,9 @@ class DataElementGroup:
         children : list
             The list of child elements belonging to the group.
         """
-        self.type = 'DATA_ELEMENT_GROUP'
+        self.type = "DATA_ELEMENT_GROUP"
         self.title = title
-        self.element_id = ''
+        self.element_id = ""
         if isinstance(children, list):
             self.children = children
         else:
@@ -666,20 +723,27 @@ class DataElementGroup:
         Returns
         -------
         dict
-            A dictionary containing the object's type, title, and a list of its children's dictionary representations.
+            A dictionary containing the object's type, title, and a list of its
+            children's dictionary representations.
         """
-        return {'type': self.type, 'title': self.title, 'children': [child.to_dict() for child in self.children]}
-    
-    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = ''):
+        return {
+            "type": self.type,
+            "title": self.title,
+            "children": [child.to_dict() for child in self.children],
+        }
+
+    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id=""):
         """
         Write the data element to Labfolder by creating a new data element group.
 
         Parameters
         ----------
         user_info : LabFolderUserInfo
-            An object containing user authentication information and API address for Labfolder.
+            An object containing user authentication information and API address
+            for Labfolder.
         entry_id : str, optional
-            The ID of the Labfolder entry to which the data element should be written. If not provided or empty, the function will print a message and return None.
+            The ID of the Labfolder entry to which the data element should be written.
+            If not provided or empty, the function will print a message and return None.
 
         Returns
         -------
@@ -687,22 +751,30 @@ class DataElementGroup:
 
         Notes
         -----
-        If the data element group is successfully written to Labfolder (HTTP status code 201), the `element_id` attribute of the object is updated with the returned ID. Otherwise, an error message and the response text are printed.
+        If the data element group is successfully written to Labfolder (HTTP status code 201),
+        the `element_id` attribute of the object is updated with the returned ID. Otherwise,
+        an error message and the response text are printed.
         """
-        if entry_id == '':
+        if entry_id == "":
             print("No entry_id provided.")
             return None
-        content = {'entry_id': entry_id,
-                   'data_elements': [self.to_dict()],
-                   'locked': False}
-        response = requests.post(f"{user_info.API_address}elements/data",
-                                 headers=user_info.auth_token,
-                                 json=content)
+        content = {
+            "entry_id": entry_id,
+            "data_elements": [self.to_dict()],
+            "locked": False,
+        }
+        response = requests.post(
+            f"{user_info.API_address}elements/data",
+            headers=user_info.auth_token,
+            json=content,
+        )
         if response.status_code == 201:
             print(f"Data element group written to Labfolder.")
-            self.element_id = response.json()['id']
+            self.element_id = response.json()["id"]
         else:
-            print(f"Data element group could not be written to Labfolder. Status code: {response.status_code}")
+            print(
+                f"Data element group could not be written to Labfolder. Status code: {response.status_code}"
+            )
             print(response.text)
 
     def update_on_labfolder(self, user_info: LabFolderUserInfo):
@@ -712,7 +784,8 @@ class DataElementGroup:
         Parameters
         ----------
         user_info : LabFolderUserInfo
-            An object containing the API address and authentication token required to access Labfolder.
+            An object containing the API address and authentication token required
+            to access Labfolder.
 
         Returns
         -------
@@ -722,23 +795,30 @@ class DataElementGroup:
         -----
         - If `element_id` is empty, the update is not performed and a message is printed.
         - Sends a PUT request to the Labfolder API to update the data element group.
-        - Prints a message indicating whether the update was successful or not, based on the response status code.
+        - Prints a message indicating whether the update was successful or not,
+        based on the response status code.
         """
-        if self.element_id == '':
+        if self.element_id == "":
             print("No data element group ID provided.")
             return None
-        content = {'id': self.element_id,
-                   'title': self.title,
-                   'data_elements': [self.to_dict()],
-                   'locked': False}
-        response = requests.put(f"{user_info.API_address}elements/data/{self.element_id}",
-                                 headers=user_info.auth_token,
-                                 json=content)
+        content = {
+            "id": self.element_id,
+            "title": self.title,
+            "data_elements": [self.to_dict()],
+            "locked": False,
+        }
+        response = requests.put(
+            f"{user_info.API_address}elements/data/{self.element_id}",
+            headers=user_info.auth_token,
+            json=content,
+        )
         if response.status_code == 200:
             print(f"Data element group updated on Labfolder.")
         else:
-            print(f"Data element group could not be updated on Labfolder. Status code: {response.status_code}")
-            
+            print(
+                f"Data element group could not be updated on Labfolder. Status code: {response.status_code}"
+            )
+
     def __labfolder_dict__(self):
         """
         Generate a dictionary representation of the object for labfolder export.
@@ -746,10 +826,15 @@ class DataElementGroup:
         Returns
         -------
         dict
-            A dictionary containing the object's type, title, and a list of its children's dictionary representations.
+            A dictionary containing the object's type, title, and a list of its
+            children's dictionary representations.
         """
-        return {'type': self.type, 'title': self.title, 'children': [child.to_dict() for child in self.children]}
-            
+        return {
+            "type": self.type,
+            "title": self.title,
+            "children": [child.to_dict() for child in self.children],
+        }
+
     def __repr__(self):
         """
         Return a string representation of the DataElementGroup object.
@@ -761,9 +846,11 @@ class DataElementGroup:
         """
         return f"DataElementGroup(title={self.title}, children={self.children})"
 
+
 class TableElement:
     """
-    TableElement represents a table element in Labfolder, supporting loading, conversion, and synchronization with Labfolder's API.
+    TableElement represents a table element in Labfolder, supporting loading,
+    conversion, and synchronization with Labfolder's API.
     Parameters
     ----------
     user_info : LabFolderUserInfo
@@ -821,8 +908,16 @@ class TableElement:
     - Requires `requests`, `pandas`, `numpy`, and `deepcopy` modules.
     - Assumes `LabFolderUserInfo` is defined elsewhere and provides necessary authentication and API details.
     """
-  
-    def __init__(self, user_info: LabFolderUserInfo, element_id='', entry_id='', table={}, import_as_pd=True, header=True):
+
+    def __init__(
+        self,
+        user_info: LabFolderUserInfo,
+        element_id="",
+        entry_id="",
+        table={},
+        import_as_pd=True,
+        header=True,
+    ):
         """
         Initialize a table data element.
 
@@ -833,7 +928,8 @@ class TableElement:
         element_id : str, optional
             The unique identifier for the table element. Default is an empty string.
         entry_id : str, optional
-            The identifier for the entry to which this table belongs. Default is an empty string.
+            The identifier for the entry to which this table belongs. Default is
+            an empty string.
         table : dict, optional
             The table data, represented as a dictionary. Default is an empty dictionary.
         import_as_pd : bool, optional
@@ -843,21 +939,22 @@ class TableElement:
 
         Notes
         -----
-        If `user_info` is provided and `element_id` is not empty, the table is loaded and optionally converted to a pandas DataFrame.
-        The `owner_id` is set from `user_info.user_id` if available, otherwise left empty.
-
-        TODO
+        If `user_info` is provided and `element_id` is not empty, the table is
+        loaded and optionally converted to a pandas DataFrame.
+        The `owner_id` is set from `user_info.user_id` if available, otherwise
+        left empty.
         ----
-        Check if `owner_id` can be obtained from another source, especially when `user_info` does not represent the table owner.
+        Check if `owner_id` can be obtained from another source, especially when
+        `user_info` does not represent the table owner.
         """
-        self.type = 'TABLE'
+        self.type = "TABLE"
         self.entry_id = entry_id
         self.element_id = element_id
         self.table = table
-        self.creation_date = ''
-        self.owner_id = user_info.user_id if user_info is not None else ''
-        self.title = ''
-        if isinstance(user_info, LabFolderUserInfo) and element_id != '':
+        self.creation_date = ""
+        self.owner_id = user_info.user_id if user_info is not None else ""
+        self.title = ""
+        if isinstance(user_info, LabFolderUserInfo) and element_id != "":
             self.load_table(user_info, to_pd=import_as_pd, header=header)
             if import_as_pd:
                 self.table_to_pd(header=header)
@@ -874,45 +971,56 @@ class TableElement:
         to_pd : bool, optional
             If True, convert the loaded table to a pandas DataFrame (default is True).
         header : bool, optional
-            If True, treat the first row as the header when converting to pandas DataFrame (default is True).
+            If True, treat the first row as the header when converting to pandas
+            DataFrame (default is True).
 
         Returns
         -------
         None or pandas.DataFrame
             Returns None if the table ID is not provided or user_info is invalid.
-            If `to_pd` is True, the table is converted to a pandas DataFrame and stored in the object.
+            If `to_pd` is True, the table is converted to a pandas DataFrame and
+            stored in the object.
 
         Notes
         -----
-        - Updates the object's `entry_id`, `creation_date`, `owner_id`, `title`, and `table` attributes.
+        - Updates the object's `entry_id`, `creation_date`, `owner_id`, `title`,
+        and `table` attributes.
         - Requires a valid LabFolderUserInfo object for authentication.
         """
-        if self.element_id == '':
+        if self.element_id == "":
             print("No table ID provided.")
             return None
         elif not isinstance(user_info, LabFolderUserInfo):
             print("Not logged into Labfolder. User information required.")
             return None
         else:
-            table = requests.get(f"{user_info.API_address}elements/table/{self.element_id}", headers=user_info.auth_token).json()
-            self.entry_id = table['entry_id']
-            self.creation_date = table['creation_date']
-            self.owner_id = table['owner_id']
-            self.title = table['title']
-            self.table = table['content']['sheets']
+            table = requests.get(
+                f"{user_info.API_address}elements/table/{self.element_id}",
+                headers=user_info.auth_token,
+                timeout=10,
+            ).json()
+            self.entry_id = table["entry_id"]
+            self.creation_date = table["creation_date"]
+            self.owner_id = table["owner_id"]
+            self.title = table["title"]
+            self.table = table["content"]["sheets"]
             if to_pd:
                 self.table_to_pd(header=header)
 
-    def write_to_labfolder(self, user_info: LabFolderUserInfo, entry_id = '', header=True):
+    def write_to_labfolder(
+        self, user_info: LabFolderUserInfo, entry_id="", header=True
+    ):
         """
         Writes the current table to Labfolder as a new table element.
 
         Parameters
         ----------
         user_info : LabFolderUserInfo
-            An object containing user authentication information and API address for Labfolder.
+            An object containing user authentication information and API address
+            for Labfolder.
         entry_id : str, optional
-            The ID of the Labfolder entry to which the table should be written. If not provided, uses self.entry_id.
+            The ID of the Labfolder entry to which the table should be written.
+            If not provided, uses self.entry_id.
         header : bool, default True
             Whether to include the header in the exported table content.
 
@@ -922,15 +1030,18 @@ class TableElement:
 
         Notes
         -----
-        - If neither `entry_id` nor `self.entry_id` is provided, the function prints a message and returns None.
+        - If neither `entry_id` nor `self.entry_id` is provided, the function prints
+        a message and returns None.
         - If `self.table` is None, the function prints a message and returns None.
-        - If the table cannot be converted to export format, the function prints a message and returns None.
-        - On successful upload (HTTP 201), sets `self.element_id` to the returned element ID.
+        - If the table cannot be converted to export format, the function prints a
+        message and returns None.
+        - On successful upload (HTTP 201), sets `self.element_id` to the returned
+        element ID.
         - Prints status messages for success or failure.
         """
-        if entry_id == '' and self.entry_id != '':
-            entry_id = self.entry_id           
-        elif entry_id == '' and self.entry_id == '':
+        if entry_id == "" and self.entry_id != "":
+            entry_id = self.entry_id
+        elif entry_id == "" and self.entry_id == "":
             print("No entry_id provided.")
             return None
         if self.table is None:
@@ -940,14 +1051,24 @@ class TableElement:
         if table_content is None:
             print("Could not convert table to export format.")
             return None
-        response = requests.post(f"{user_info.API_address}elements/table",
-                                 headers=user_info.auth_token,
-                                 json={'entry_id': entry_id, 'title': self.title,'content': table_content, 'locked': False})
+        response = requests.post(
+            f"{user_info.API_address}elements/table",
+            headers=user_info.auth_token,
+            timeout=10,
+            json={
+                "entry_id": entry_id,
+                "title": self.title,
+                "content": table_content,
+                "locked": False,
+            },
+        )
         if response.status_code == 201:
             print(f"Table {self.title} written to Labfolder.")
-            self.element_id = response.json()['id']
+            self.element_id = response.json()["id"]
         else:
-            print(f"Table {self.title} could not be written to Labfolder. Status code: {response.status_code}")
+            print(
+                f"Table {self.title} could not be written to Labfolder. Status code: {response.status_code}"
+            )
             print(response.text)
 
     def update_on_labfolder(self, user_info: LabFolderUserInfo, header=True):
@@ -968,7 +1089,8 @@ class TableElement:
         Notes
         -----
         - If `self.table` is None, the function prints a message and returns None.
-        - If the table cannot be converted to export format, the function prints a message and returns None.
+        - If the table cannot be converted to export format, the function prints a
+        message and returns None.
         - Sends a PUT request to update the table element on Labfolder.
         - Prints the result of the update operation.
         """
@@ -979,43 +1101,60 @@ class TableElement:
         if table_content is None:
             print("Could not convert table to export format.")
             return None
-        response = requests.put(f"{user_info.API_address}elements/table/{self.element_id}",
-                                 headers=user_info.auth_token,
-                                 json={'entry_id': self.entry_id, 'id': self.element_id, 'content': table_content, 'locked': False})
+        response = requests.put(
+            f"{user_info.API_address}elements/table/{self.element_id}",
+            headers=user_info.auth_token,
+            timeout=10,
+            json={
+                "entry_id": self.entry_id,
+                "id": self.element_id,
+                "content": table_content,
+                "locked": False,
+            },
+        )
         if response.status_code == 200:
             print(f"Table {self.title} updated on Labfolder.")
         else:
-            print(f"Table {self.title} could not be updated on Labfolder. Status code: {response.status_code}")
+            print(
+                f"Table {self.title} could not be updated on Labfolder. Status code: {response.status_code}"
+            )
             print(response.text)
 
     def table_to_pd(self, header=True, in_place=True):
         """
         Converts the internal table representation to pandas DataFrames.
-        If the table is already converted to pandas DataFrames, the function prints a message and returns None.
-        Otherwise, it processes each sheet in the table, converting its data to a pandas DataFrame, handling missing values,
+        If the table is already converted to pandas DataFrames, the function prints
+        a message and returns None.
+        Otherwise, it processes each sheet in the table, converting its data to a
+        pandas DataFrame, handling missing values,
         and optionally using the first row as the header.
         Parameters
         ----------
         header : bool, optional
             Whether to use the first row of each table as the header (default is True).
         in_place : bool, optional
-            If True, modifies the internal table in place. If False, returns a new table with DataFrames (default is True).
+            If True, modifies the internal table in place. If False, returns a new
+            table with DataFrames (default is True).
         Returns
         -------
         dict or None
-            If `in_place` is False, returns a dictionary mapping sheet names to their corresponding pandas DataFrames.
+            If `in_place` is False, returns a dictionary mapping sheet names to
+            their corresponding pandas DataFrames.
             If `in_place` is True, modifies the internal table and returns None.
         Notes
         -----
-        - If the table is already in pandas DataFrame format, the function prints a message and returns None.
-        - Handles missing values by filling with NaN and dropping rows/columns that are entirely NaN.
-        - If `header` is True, the first row is used as column headers and removed from the data.
+        - If the table is already in pandas DataFrame format, the function prints a
+        message and returns None.
+        - Handles missing values by filling with NaN and dropping rows/columns that
+        are entirely NaN.
+        - If `header` is True, the first row is used as column headers and removed
+        from the data.
         """
-        if any([isinstance(element, pd.DataFrame) for element in self.table.values()]):
+        if any(isinstance(element, pd.DataFrame) for element in self.table.values()):
             print("Table already converted to pandas DataFrame.")
             print(self.table)
             return None
-        
+
         def table_to_pandas(table, header: bool):
             """
             Converts a nested dictionary table structure to a pandas DataFrame.
@@ -1023,15 +1162,18 @@ class TableElement:
             Parameters
             ----------
             table : dict
-                A nested dictionary where each key represents a row, and each value is a dictionary
+                A nested dictionary where each key represents a row, and each value
+                is a dictionary
                 mapping column names to dictionaries containing a 'value' key.
             header : bool
-                If True, the first row of the DataFrame is used as the header (column names).
+                If True, the first row of the DataFrame is used as the header
+                (column names).
 
             Returns
             -------
             pd.DataFrame
-                A pandas DataFrame constructed from the input table, with empty rows and columns removed.
+                A pandas DataFrame constructed from the input table, with empty
+                rows and columns removed.
                 If `header` is True, the first row is used as column headers.
 
             Notes
@@ -1043,32 +1185,40 @@ class TableElement:
             data = []
             for row in table.keys():
                 try:
-                    data.append({col: table[row][col].get('value', None) for col in table[row].keys()})
+                    data.append(
+                        {
+                            col: table[row][col].get("value", None)
+                            for col in table[row].keys()
+                        }
+                    )
                 except KeyError:
                     data.append({col: None for col in table[row].keys()})
             df = pd.DataFrame(data)
             df.fillna(np.nan, inplace=True)
-            df.dropna(axis=0, how='all', inplace=True)
-            df.dropna(axis=1, how='all', inplace=True)
+            df.dropna(axis=0, how="all", inplace=True)
+            df.dropna(axis=1, how="all", inplace=True)
             if header:
                 df.columns = df.iloc[0].tolist()
                 df.drop(0, inplace=True)
             df.sort_index(inplace=True)
             df.reset_index(drop=True, inplace=True)
             return df
-        
+
         if in_place:
             table = self.table
         else:
             table = deepcopy(self.table)
-        
-        table = {sheet: table_to_pandas(self.table[sheet]['data']['dataTable'],
-                                            header=header)
-                                            for sheet in self.table.keys()}
+
+        table = {
+            sheet: table_to_pandas(
+                self.table[sheet]["data"]["dataTable"], header=header
+            )
+            for sheet in self.table.keys()
+        }
         if not in_place:
-            return(table)
-    
-    def add_sheet(self, sheet_name, table: pd.DataFrame):
+            return table
+
+    def add_sheet(self, sheet_name: str, table: pd.DataFrame) -> None:
         """
         Add a new sheet to the table dictionary with the given sheet name and DataFrame.
 
@@ -1082,25 +1232,31 @@ class TableElement:
         Returns
         -------
         None
-            This method does not return anything. If the input is not a DataFrame, prints a message and returns None.
+            This method does not return anything. If the input is not a DataFrame,
+            prints a message and returns None.
 
         Notes
         -----
-        If `self.table` is None, it initializes it as an empty dictionary before adding the new sheet.
+        If `self.table` is None, it initializes it as an empty dictionary before
+        adding the new sheet.
         """
+
         if not isinstance(table, pd.DataFrame):
             print("Table is not a pandas DataFrame.")
             return None
         if self.table is None:
             self.table = {}
         self.table.update({sheet_name: table})
-        
+
     def table_to_dict(self):
         """
-        Converts all pandas DataFrame objects in the `self.table` dictionary to dictionaries.
+        Converts all pandas DataFrame objects in the `self.table` dictionary to
+        dictionaries.
 
-        Iterates over each sheet in `self.table`. If the value associated with a sheet is a pandas DataFrame,
-        it is converted to a dictionary using the DataFrame's `to_dict()` method. If the value is not a DataFrame,
+        Iterates over each sheet in `self.table`. If the value associated with a
+        sheet is a pandas DataFrame,
+        it is converted to a dictionary using the DataFrame's `to_dict()` method.
+        If the value is not a DataFrame,
         a message is printed indicating the sheet is not a DataFrame.
 
         Returns
@@ -1109,7 +1265,8 @@ class TableElement:
 
         Notes
         -----
-        This method modifies `self.table` in place, replacing DataFrame objects with their dictionary representations.
+        This method modifies `self.table` in place, replacing DataFrame objects
+        with their dictionary representations.
         """
         for sheet in self.table.keys():
             if isinstance(self.table[sheet], pd.DataFrame):
@@ -1117,16 +1274,23 @@ class TableElement:
             else:
                 print(f"Sheet {sheet} is not a pandas DataFrame.")
 
-    def convert_pd_to_export(self, header = True):
+    def convert_pd_to_export(self, header=True):
         """
-        Converts the internal table of pandas DataFrames into a dictionary format suitable for export.
+        Converts the internal table of pandas DataFrames into a dictionary format
+        suitable for export.
 
-        If the table elements are not already pandas DataFrames, attempts to convert them. Each sheet in the table is processed to optionally include column headers as the first row, replace NaN and infinite values with None, and convert the DataFrame to a nested dictionary structure. The resulting dictionary contains metadata about each sheet, including its name, row count, column count, and the data itself.
+        If the table elements are not already pandas DataFrames, attempts to convert
+        them. Each sheet in the table is processed to optionally include column headers
+        as the first row, replace NaN and infinite values with None, and convert the
+        DataFrame to a nested dictionary structure. The resulting dictionary contains
+        metadata about each sheet, including its name, row count, column count, and
+        the data itself.
 
         Parameters
         ----------
         header : bool, optional
-            If True, includes the DataFrame's column headers as the first row in the exported data (default is True).
+            If True, includes the DataFrame's column headers as the first row in the
+            exported data (default is True).
 
         Returns
         -------
@@ -1152,34 +1316,44 @@ class TableElement:
         None
             Any exceptions during conversion are caught and handled internally.
         """
-        if not all([isinstance(element, pd.DataFrame) for element in self.table.values()]):
+        if not all(
+            isinstance(element, pd.DataFrame) for element in self.table.values()
+        ):
             try:
                 self.table_to_pd()
             except:
                 print("Table could not be converted to pandas DataFrame.")
-                return None    
+                return None
         tmp_table = deepcopy(self.table)
-        table_content = {'sheets': {}}
+        table_content = {"sheets": {}}
         for sheet in tmp_table.keys():
             if header:
                 tmp_table[sheet].index = tmp_table[sheet].index + 1
                 tmp_table[sheet].loc[0] = tmp_table[sheet].columns
             tmp_table[sheet].sort_index(inplace=True)
             tmp_table[sheet].reset_index(drop=True, inplace=True)
-            rowCount = tmp_table[sheet].shape[0]
-            columnCount = tmp_table[sheet].shape[1]
+            row_count = tmp_table[sheet].shape[0]
+            column_count = tmp_table[sheet].shape[1]
             tmp_table[sheet].columns = range(tmp_table[sheet].shape[1])
-            tmp_table[sheet].replace({np.nan: None, np.inf: None, -np.inf: None}, inplace=True)
-            tmp_table[sheet] = tmp_table[sheet].to_dict(orient='index')
+            tmp_table[sheet].replace(
+                {np.nan: None, np.inf: None, -np.inf: None}, inplace=True
+            )
+            tmp_table[sheet] = tmp_table[sheet].to_dict(orient="index")
             for row in tmp_table[sheet].keys():
                 for col in tmp_table[sheet][row].keys():
-                    tmp_table[sheet][row][col] = {'value': tmp_table[sheet][row][col]}
-            table_content['sheets'].update({sheet: {'name': sheet,
-                                                    'rowCount': rowCount,
-                                                    'columnCount': columnCount,
-                                                    'data': {'dataTable': tmp_table[sheet]}}})
-        return table_content 
-    
+                    tmp_table[sheet][row][col] = {"value": tmp_table[sheet][row][col]}
+            table_content["sheets"].update(
+                {
+                    sheet: {
+                        "name": sheet,
+                        "rowCount": row_count,
+                        "columnCount": column_count,
+                        "data": {"dataTable": tmp_table[sheet]},
+                    }
+                }
+            )
+        return table_content
+
     def dict_to_table(self, in_place=True):
         """
         Converts dictionary entries in the table attribute to pandas DataFrames.
@@ -1187,8 +1361,9 @@ class TableElement:
         Parameters
         ----------
         in_place : bool, optional
-            If True, modifies the `table` attribute in place. If False, returns a new table
-            with the same structure but with dictionary entries converted to DataFrames.
+            If True, modifies the `table` attribute in place. If False, returns a
+            new table with the same structure but with dictionary entries converted
+            to DataFrames.
 
         Returns
         -------
@@ -1212,8 +1387,8 @@ class TableElement:
             else:
                 print(f"Sheet {sheet} is not a dictionary.")
         if not in_place:
-            return(table)
-        
+            return table
+
     def to_dict(self, in_place=True):
         """
         Convert the internal table attribute to a dictionary representation.
@@ -1221,18 +1396,21 @@ class TableElement:
         Parameters
         ----------
         in_place : bool, optional
-            If True, modifies the internal `table` attribute in place. If False, operates on a deep copy
-            and returns the converted dictionary. Default is True.
+            If True, modifies the internal `table` attribute in place. If False,
+            operates on a deep copy and returns the converted dictionary.
+            Default is True.
 
         Returns
         -------
         dict or None
-            If `in_place` is False, returns the converted dictionary representation of the table.
+            If `in_place` is False, returns the converted dictionary representation
+            of the table.
             If `in_place` is True, returns None.
 
         Notes
         -----
-        - Each sheet in the table that is a pandas DataFrame is converted to a dictionary using `to_dict()`.
+        - Each sheet in the table that is a pandas DataFrame is converted to a
+        dictionary using `to_dict()`.
         - Sheets that are already dictionaries are left unchanged.
         - If a sheet is neither a DataFrame nor a dictionary, a message is printed.
         """
@@ -1248,7 +1426,7 @@ class TableElement:
             else:
                 print(f"Sheet {sheet} is not a pandas DataFrame or dictionary.")
         if not in_place:
-            return(table)
+            return table
 
     def __repr__(self):
         """
@@ -1259,17 +1437,23 @@ class TableElement:
         str
             A string describing the TableElement, including its type, id, and table.
         """
-        return f"TableElement(type={self.type}, id={self.element_id}, table={self.table})"    
+        return (
+            f"TableElement(type={self.type}, id={self.element_id}, table={self.table})"
+        )
 
-def parse_data_element(element: dict, user_info: LabFolderUserInfo) -> (
-        DataElementGroup |
-        FileElement |
-        ImageElement |
-        TextElement |
-        DescriptiveDataElement |
-        DataElement |
-        TableElement |
-        None):
+
+def parse_data_element(
+    element: dict, user_info: LabFolderUserInfo
+) -> (
+    DataElementGroup
+    | FileElement
+    | ImageElement
+    | TextElement
+    | DescriptiveDataElement
+    | DataElement
+    | TableElement
+    | None
+):
     """
     Parse a data element from Labfolder and return the corresponding object.
     Parameters
@@ -1283,26 +1467,44 @@ def parse_data_element(element: dict, user_info: LabFolderUserInfo) -> (
     DataElementGroup | FileElement | ImageElement | TextElement |
     DescriptiveDataElement | DataElement | TableElement | None
     """
-    t = element.get('element_type', '')
-    if t == 'DATA_ELEMENT_GROUP':
-        group = DataElementGroup(title=element.get('title', ''))
-        for child in element.get('children', []):
+    t = element.get("element_type", "")
+    if t == "DATA_ELEMENT_GROUP":
+        group = DataElementGroup(title=element.get("title", ""))
+        for child in element.get("children", []):
             c = parse_data_element(child, user_info)
             if c is not None:
                 group.add_child(c)
         return group
-    elif t == 'FILE':
-        return FileElement(element_id=element.get('id', ''))
-    elif t == 'IMAGE':
-        return ImageElement(element_id=element.get('id', ''), title=element.get('title', ''), original_file_content_type=element.get('original_file_content_type', 'image/png'))
-    elif t == 'TEXT':
-        return TextElement(element_id=element.get('id', ''), content=element.get('content', ''))
-    elif t == 'DESCRIPTIVE_DATA':
-        return DescriptiveDataElement(element_id=element.get('id', ''), title=element.get('title', ''), description=element.get('description', ''))
-    elif t == 'DATA':
-        return DataElement(element_id=element.get('id', ''), description=element.get('description', ''))
-    elif t == 'TABLE':
-        return TableElement(user_info=user_info, element_id=element.get('id', ''), entry_id=element.get('entry_id', ''))
+    elif t == "FILE":
+        return FileElement(element_id=element.get("id", ""))
+    elif t == "IMAGE":
+        return ImageElement(
+            element_id=element.get("id", ""),
+            title=element.get("title", ""),
+            original_file_content_type=element.get(
+                "original_file_content_type", "image/png"
+            ),
+        )
+    elif t == "TEXT":
+        return TextElement(
+            element_id=element.get("id", ""), content=element.get("content", "")
+        )
+    elif t == "DESCRIPTIVE_DATA":
+        return DescriptiveDataElement(
+            element_id=element.get("id", ""),
+            title=element.get("title", ""),
+            description=element.get("description", ""),
+        )
+    elif t == "DATA":
+        return DataElement(
+            element_id=element.get("id", ""), description=element.get("description", "")
+        )
+    elif t == "TABLE":
+        return TableElement(
+            user_info=user_info,
+            element_id=element.get("id", ""),
+            entry_id=element.get("entry_id", ""),
+        )
     else:
         print(f"Unknown element type: {element}")
         return None

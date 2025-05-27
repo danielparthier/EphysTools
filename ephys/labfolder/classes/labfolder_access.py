@@ -3,7 +3,6 @@ This module provides functionality for interacting with the Labfolder API.
 It includes methods for user authentication, data retrieval, and other
 operations related to Labfolder.
 """
-from typing import Any
 import getpass
 import re
 import json
@@ -66,7 +65,10 @@ class LabFolderUserInfo:
 
 
 def labfolder_login(
-    labfolder_url: str = "", user: str = "", password: str = "", allow_input: bool = True
+    labfolder_url: str = "",
+    user: str = "",
+    password: str = "",
+    allow_input: bool = True,
 ) -> LabFolderUserInfo:
     """
     Logs into the Labfolder API and returns user information.
@@ -131,7 +133,17 @@ def labfolder_login(
     return user_auth
 
 
-def labfolder_logout(user: LabFolderUserInfo) -> Any:
+def labfolder_logout(user: LabFolderUserInfo) -> None:
+    """
+    Logs out the user from the Labfolder API.
+    Args:
+        user (LabFolderUserInfo): An instance of LabFolderUserInfo containing
+        the authentication token and Labfolder URL.
+    Returns:
+        None: If logout is successful.
+        Prints a message indicating the success or failure of the logout operation.
+    """
+
     status = requests.request(
         "POST",
         user.labfolder_url + "/api/v2/auth/logout",
@@ -140,6 +152,6 @@ def labfolder_logout(user: LabFolderUserInfo) -> Any:
     )
     if status.status_code == 204:
         print("Logout successful")
-        return None
     else:
         print("Logout failed. Status code: " + str(status.status_code))
+    

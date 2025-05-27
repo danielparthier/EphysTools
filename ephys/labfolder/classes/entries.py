@@ -75,6 +75,7 @@ class Entry:
     update_entry(self, user_info: LabFolderUserInfo) -> None
         Updates the existing entry in LabFolder.
     """
+
     def __init__(self, user_info: LabFolderUserInfo, entry_id="", raw=False):
         """
         Initializes an instance of the class.
@@ -133,7 +134,7 @@ class Entry:
         Returns
         -------
         None
-            The method updates the `self.elements` attribute with the retrieved 
+            The method updates the `self.elements` attribute with the retrieved
             and optionally processed elements.
         """
         self.elements = _get_entry(self, self.entry_id, user_info)
@@ -214,7 +215,7 @@ class Entry:
         Parameters
         ----------
         elements : object
-            The element or elements to be added to the elements list. This can 
+            The element or elements to be added to the elements list. This can
             be a single object or a collection of objects.
 
         Notes
@@ -259,7 +260,9 @@ class Entry:
             "elements": self.elements,
             #     "locked": False
         }
-        response = requests.post(endpoint, headers=user_info.auth_token, json=entry, timeout=10)
+        response = requests.post(
+            endpoint, headers=user_info.auth_token, json=entry, timeout=10
+        )
         if response.status_code == 201:
             response_json = response.json()
             self.entry_id = response_json["id"]
@@ -303,7 +306,9 @@ class Entry:
             "elements": self.elements,
             "locked": False,
         }
-        response = requests.put(endpoint, headers=user_info.auth_token, json=entry, timeout=10)
+        response = requests.put(
+            endpoint, headers=user_info.auth_token, json=entry, timeout=10
+        )
         if response.status_code != 200:
             print(f"Error updating entry: {response.status_code}")
         else:
