@@ -172,8 +172,6 @@ class ChannelInformation:
         channel_groups = []
         channel_unit = []
         channel_index = 0
-        voltage_index = 0
-        current_index = 0
 
         self.channel_number = np.array([])
         self.recording_type = np.array([])

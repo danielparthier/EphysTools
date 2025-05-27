@@ -44,6 +44,7 @@ class CurrentTrace(Channel):
     change_unit(self, unit: str) -> None:
         Changes the unit of the current trace to the specified unit if it is a current unit.
     """
+
     def __init__(self, sweep_count: int, sweep_length: int, unit: str):
         """
         Initializes the CurrentTrace with the given sweep count, sweep length, and unit.
@@ -112,9 +113,11 @@ class CurrentClamp(Channel):
         Returns:
         None
         """
-        super().__init__(sweep_count=channel.sweep_count,
-                         sweep_length=channel.sweep_length,
-                         unit=channel.unit)
+        super().__init__(
+            sweep_count=channel.sweep_count,
+            sweep_length=channel.sweep_length,
+            unit=channel.unit,
+        )
         self.data = channel.data
         self.unit = channel.unit
         self.sweep_count = channel.sweep_count

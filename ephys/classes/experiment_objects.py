@@ -13,6 +13,7 @@ from ephys.classes.trace import Trace
 
 mplstyle.use("fast")
 
+
 class MetaData:
     """
     A class representing metadata for experiment files.
@@ -45,7 +46,6 @@ class MetaData:
         self.experiment_info = np.array([])
         if file_path != "":
             self.add_file_info(file_path, experimenter, add=False)
-
 
     def add_file_info(
         self,

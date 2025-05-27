@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ephys.classes.current import CurrentTrace
     from ephys.classes.channels import ChannelInformation, Channel
 
+
 def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
     """
     Reads data from a WinWcp file and populates the given `trace` object with the data.
@@ -72,7 +73,7 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
                 trace_insert = VoltageClamp(channel=trace_insert)
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
-        trace_insert.starting_time = Quantity(trace.time[:,0], time_unit)
+        trace_insert.starting_time = Quantity(trace.time[:, 0], time_unit)
         trace.channel.append(trace_insert)
     if quick_check:
         print("Warning: Quick clamp check might not be accurate.")

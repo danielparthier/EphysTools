@@ -78,7 +78,7 @@ class VoltageTrace(Channel):
         self.sweep_length = sweep_length
         self.unit = unit
         self.clamped = False
-     #   self.data = Quantity(np.zeros((sweep_count, sweep_length)), unit)
+        #   self.data = Quantity(np.zeros((sweep_count, sweep_length)), unit)
         self.action_potentials = None
 
     def change_unit(self, unit: str) -> None:
@@ -150,9 +150,11 @@ class VoltageClamp(Channel):
         Returns:
         None
         """
-        super().__init__(sweep_count=channel.sweep_count,
-                         sweep_length=channel.sweep_length,
-                         unit=channel.unit)
+        super().__init__(
+            sweep_count=channel.sweep_count,
+            sweep_length=channel.sweep_length,
+            unit=channel.unit,
+        )
         self.data = channel.data
         self.unit = channel.unit
         self.sweep_count = channel.sweep_count
