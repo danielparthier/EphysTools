@@ -17,10 +17,10 @@ from neo import WinWcpIO, AxonIO, IgorIO
 from ephys.classes.class_functions import _get_sweep_subset, _is_clamp, check_clamp
 
 
-
 if TYPE_CHECKING:
     from ephys.classes.voltage import VoltageTrace, VoltageClamp
     from ephys.classes.current import CurrentTrace, CurrentClamp
+
 
 class Channel:
     """
@@ -80,7 +80,7 @@ class Channel:
         Returns:
         None
         """
-        self.data[sweep_count] = data.flatten()
+        self.data.magnitude[sweep_count] = data.flatten()
 
     def append_data(self, data) -> None:
         """

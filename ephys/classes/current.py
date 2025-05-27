@@ -14,17 +14,10 @@ CurrentClamp:
 
 Dependencies:
 -------------
-- numpy: For numerical operations.
-- quantities: For handling physical quantities with units.
 - ephys.classes.class_functions: Contains utility functions for electrophysiology data.
 - ephys.classes.channels: Provides base classes for channel data handling.
 """
 
-#from typing import Any
-
-#import numpy as np
-#from quantities import Quantity
-#from ephys.classes.class_functions import _get_sweep_subset, check_clamp
 from ephys.classes.channels import Channel
 
 
@@ -51,6 +44,23 @@ class CurrentTrace(Channel):
     change_unit(self, unit: str) -> None:
         Changes the unit of the current trace to the specified unit if it is a current unit.
     """
+    def __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        """
+        Initializes the CurrentTrace with the given sweep count, sweep length, and unit.
+
+        Parameters:
+        sweep_count (int): The number of sweeps in the current trace.
+        sweep_length (int): The length of each sweep.
+        unit (str): The unit of the current trace.
+
+        Returns:
+        None
+        """
+        super().__init__(sweep_count=sweep_count, sweep_length=sweep_length, unit=unit)
+        self.sweep_count = sweep_count
+        self.sweep_length = sweep_length
+        self.unit = unit
+        self.clamped = False
 
     def change_unit(self, unit: str) -> None:
         """
@@ -102,6 +112,9 @@ class CurrentClamp(Channel):
         Returns:
         None
         """
+        super().__init__(sweep_count=channel.sweep_count,
+                         sweep_length=channel.sweep_length,
+                         unit=channel.unit)
         self.data = channel.data
         self.unit = channel.unit
         self.sweep_count = channel.sweep_count

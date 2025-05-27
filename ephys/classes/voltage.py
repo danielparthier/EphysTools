@@ -15,17 +15,10 @@ VoltageClamp:
 
 Dependencies:
 -------------
-- numpy: For numerical operations.
-- quantities: For handling physical quantities with units.
 - ephys.classes.class_functions: Contains utility functions for electrophysiology data.
 - ephys.classes.channels: Provides base classes for channel data handling.
 """
 
-#from typing import Any
-
-#import numpy as np
-#from quantities import Quantity
-#from ephys.classes.class_functions import _get_sweep_subset, check_clamp
 from ephys.classes.channels import Channel
 from ephys.classes.action_potentials import ActionPotentials
 
@@ -68,6 +61,26 @@ class VoltageTrace(Channel):
         Checks if the voltage trace is clamped using the check_clamp function.
     """
 
+    def __init__(self, sweep_count: int, sweep_length: int, unit: str):
+        """
+        Initializes the VoltageTrace with the given sweep count, sweep length, and unit.
+
+        Parameters:
+        sweep_count (int): The number of sweeps in the voltage trace.
+        sweep_length (int): The length of each sweep.
+        unit (str): The unit of the voltage trace.
+
+        Returns:
+        None
+        """
+        super().__init__(sweep_count=sweep_count, sweep_length=sweep_length, unit=unit)
+        self.sweep_count = sweep_count
+        self.sweep_length = sweep_length
+        self.unit = unit
+        self.clamped = False
+     #   self.data = Quantity(np.zeros((sweep_count, sweep_length)), unit)
+        self.action_potentials = None
+
     def change_unit(self, unit: str) -> None:
         """
         Change the unit of the trace to the specified voltage unit.
@@ -90,7 +103,9 @@ class VoltageTrace(Channel):
         else:
             raise ValueError("Unit must be voltage.")
 
-    def detect_action_potentials(self, detection_threshold: float = 0.0, window_len: float = 8.0) -> None:
+    def detect_action_potentials(
+        self, detection_threshold: float = 0.0, window_len: float = 8.0
+    ) -> None:
         """
         Detects action potentials in the voltage data based on a specified threshold.
 
@@ -101,9 +116,11 @@ class VoltageTrace(Channel):
         Returns:
         None
         """
-        self.APs = ActionPotentials(voltage_channel=self,
-                                    detection_threshold=detection_threshold,
-                                    window_len=window_len)
+        self.action_potentials = ActionPotentials(
+            voltage_channel=self,
+            detection_threshold=detection_threshold,
+            window_len=window_len,
+        )
 
 
 class VoltageClamp(Channel):
@@ -133,11 +150,15 @@ class VoltageClamp(Channel):
         Returns:
         None
         """
+        super().__init__(sweep_count=channel.sweep_count,
+                         sweep_length=channel.sweep_length,
+                         unit=channel.unit)
         self.data = channel.data
         self.unit = channel.unit
         self.sweep_count = channel.sweep_count
         self.sweep_length = channel.sweep_length
         self.clamped = True
+
     def change_unit(self, unit: str) -> None:
         """
         Change the unit of the trace to the specified voltage unit.
