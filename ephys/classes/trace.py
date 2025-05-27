@@ -28,8 +28,7 @@ from ephys import utils
 from ephys.classes.class_functions import (
     _get_sweep_subset,
     _get_time_index,
-    wcp_trace_new,
-    wcp_trace_old,
+    wcp_trace,
     abf_trace,
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
@@ -70,17 +69,14 @@ class Trace:
 
     def __init__(self, file_path: str, quick_check: bool = True) -> None:
         self.file_path = file_path
-        self.voltage = np.array([])
-        self.current = np.array([])
         self.time = Quantity(np.array([]), units="s")
         self.sampling_rate = None
         self.channel = np.array([])
         self.channel_information = ChannelInformation()
         self.sweep_count = None
-        self.window_summary = FunctionOutput()  # Initialize window_summary attribute
+        self.window_summary = FunctionOutput()
         if file_path.endswith(".wcp"):
-            wcp_trace_old(self, file_path)
-            wcp_trace_new(self, file_path, quick_check)
+            wcp_trace(self, file_path, quick_check)
         elif file_path.endswith(".abf"):
             abf_trace(self, file_path, quick_check)
         else:
@@ -127,17 +123,19 @@ class Trace:
         Returns:
             Any: Subset of the experiment object.
         """
-
+        
         if (
             channels is None
             and signal_type is None
             and rec_type == ""
             and clamp_type is None
             and channel_groups is None
+            and sweep_subset is None
         ):
             if subset_index_only:
                 return self.channel_information
             return self
+
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
         if in_place:
             subset_trace = self
@@ -179,21 +177,8 @@ class Trace:
 
         if len(combined_index) > 0:
             signal_type = self.channel_information.signal_type[combined_index]
-            voltage_index = 0
-            current_index = 0
-            array_index = []
-            for type_test in signal_type:
-                if type_test == "voltage":
-                    array_index.append(voltage_index)
-                    voltage_index += 1
-                elif type_test == "current":
-                    array_index.append(current_index)
-                    current_index += 1
             subset_trace.channel_information.channel_number = (
                 self.channel_information.channel_number[combined_index]
-            )
-            subset_trace.channel_information.array_index = (
-                self.channel_information.array_index[combined_index]
             )
             subset_trace.channel_information.recording_type = (
                 self.channel_information.recording_type[combined_index]
@@ -208,9 +193,10 @@ class Trace:
             subset_trace.channel_information.unit = self.channel_information.unit[
                 combined_index
             ]
+
             for channel_index, channel in enumerate(subset_trace.channel):
                 if combined_index[channel_index]:
-                    subset_trace.channel[channel_index].data = channel.data[
+                    channel.data = channel.data[
                         sweep_subset, :
                     ]
                 else:
@@ -220,7 +206,6 @@ class Trace:
             subset_trace.time = subset_trace.time[sweep_subset, :]
         else:
             subset_trace.channel_information.channel_number = np.array([])
-            subset_trace.channel_information.array_index = np.array([])
             subset_trace.channel_information.recording_type = np.array([])
             subset_trace.channel_information.signal_type = np.array([])
             subset_trace.channel_information.clamped = np.array([])
@@ -342,7 +327,7 @@ class Trace:
             trace_copy = deepcopy(self)
         else:
             trace_copy = self
-        subset_channels = self.subset(
+        subset_channels = trace_copy.subset(
             channels=channels,
             signal_type=signal_type,
             rec_type=rec_type,
@@ -357,7 +342,10 @@ class Trace:
         window_start_index = _get_time_index(trace_copy.time[0, :], window[0])
         window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
         sweep_subset = _get_sweep_subset(trace_copy.time, sweep_subset)
-        for subset_channel in trace_copy.channel:
+        for subset_channel_index, subset_channel in enumerate(trace_copy.channel):
+            if not np.isin(trace_copy.channel_information.channel_number[subset_channel_index],
+                           subset_channels.channel_number):
+                continue
             if median:
                 subset_channel.data.magnitude[
                     sweep_subset, :
@@ -378,47 +366,7 @@ class Trace:
                     axis=1,
                     keepdims=True,
                 )
-        # FIXME: remove this section after adjust downstream functions to new format
-        for subset_index, signal_type_subset in enumerate(subset_channels.signal_type):
-            channel_index = subset_channels.array_index[subset_index]
-            if signal_type_subset == "voltage":
-                for sweep_index in range(0, trace_copy.voltage.shape[1]):
-                    if median:
-                        baseline = np.median(
-                            trace_copy.voltage[
-                                channel_index,
-                                sweep_index,
-                                window_start_index:window_end_index,
-                            ]
-                        )
-                    else:
-                        baseline = np.mean(
-                            trace_copy.voltage[
-                                channel_index,
-                                sweep_index,
-                                window_start_index:window_end_index,
-                            ]
-                        )
-                    trace_copy.voltage[channel_index, sweep_index, :] -= baseline
-            elif signal_type_subset == "current":
-                for sweep_index in range(0, trace_copy.current.shape[1]):
-                    if median:
-                        baseline = np.median(
-                            trace_copy.current[
-                                channel_index,
-                                sweep_index,
-                                window_start_index:window_end_index,
-                            ]
-                        )
-                    else:
-                        baseline = np.mean(
-                            trace_copy.current[
-                                channel_index,
-                                sweep_index,
-                                window_start_index:window_end_index,
-                            ]
-                        )
-                    trace_copy.current[channel_index, sweep_index, :] -= baseline
+        
         if not overwrite:
             return trace_copy
         return None
@@ -542,14 +490,10 @@ class Trace:
             sweep_subset=sweep_subset,
             in_place=True,
         )
+        
         for channel in avg_trace.channel:
             channel.channel_average()
-        # FIXME: remove this section after adjust downstream functions to new format
-        if utils.string_match("current", signal_type).any():
-            avg_trace.current = avg_trace.current.mean(axis=1)
-        if utils.string_match("voltage", signal_type).any():
-            avg_trace.voltage = avg_trace.voltage.mean(axis=1)
-        # until here
+
         if in_place:
             return None
         return avg_trace
