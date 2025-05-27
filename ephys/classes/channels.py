@@ -141,8 +141,6 @@ class ChannelInformation:
     -----------
     channel_number : np.ndarray or None
         Array of channel numbers.
-    array_index : np.ndarray or None
-        Array of array indices.
     recording_type : np.ndarray or None
         Array of recording types (e.g., 'field', 'cell').
     signal_type : np.ndarray or None
@@ -173,13 +171,11 @@ class ChannelInformation:
         clamp_type = []
         channel_groups = []
         channel_unit = []
-        array_index = []
         channel_index = 0
         voltage_index = 0
         current_index = 0
 
         self.channel_number = np.array([])
-        self.array_index = np.array([])
         self.recording_type = np.array([])
         self.signal_type = np.array([])
         self.clamped = np.array([])
@@ -193,18 +189,12 @@ class ChannelInformation:
                     if len(findall(r"Vm\(AC\)", i[0])) == 1:
                         type_out.append("field")
                         signal_type.append("voltage")
-                        array_index.append(voltage_index)
-                        voltage_index += 1
                     elif len(findall(r"Vm", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("voltage")
-                        array_index.append(voltage_index)
-                        voltage_index += 1
                     elif len(findall(r"Im", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("current")
-                        array_index.append(current_index)
-                        current_index += 1
                     channel_groups.append(i["stream_id"].astype(int).tolist())
                     clamp_type.append(
                         _is_clamp(analogsignals[channel_index].magnitude.squeeze())
@@ -218,13 +208,9 @@ class ChannelInformation:
                     if len(findall(r"V", i[4])) == 1:
                         type_out.append("cell")
                         signal_type.append("voltage")
-                        array_index.append(voltage_index)
-                        voltage_index += 1
                     elif len(findall(r"A", i[4])) == 1:
                         type_out.append("cell")
                         signal_type.append("current")
-                        array_index.append(current_index)
-                        current_index += 1
                     channel_groups.append(i["stream_id"].astype(int).tolist())
                     clamp_type.append(
                         _is_clamp(analogsignals[channel_index].magnitude.squeeze())
@@ -236,7 +222,6 @@ class ChannelInformation:
                 pass
             if len(channel_list) > 0:
                 self.channel_number = np.array(channel_list)
-                self.array_index = np.array(array_index)
                 self.recording_type = np.array(type_out)
                 self.signal_type = np.array(signal_type)
                 self.clamped = np.array(clamp_type)
@@ -252,7 +237,6 @@ class ChannelInformation:
         Returns:
             dict: A dictionary containing the following key-value pairs:
                 - 'channel_number' (int): The channel number.
-                - 'array_index' (int): The index of the array.
                 - 'recording_type' (str): The type of recording.
                 - 'signal_type' (str): The type of signal.
                 - 'clamped' (bool): Indicates if the signal is clamped.
@@ -262,7 +246,6 @@ class ChannelInformation:
 
         return {
             "channel_number": self.channel_number,
-            "array_index": self.array_index,
             "recording_type": self.recording_type,
             "signal_type": self.signal_type,
             "clamped": self.clamped,
@@ -277,7 +260,6 @@ class ChannelInformation:
         Returns:
             dict: A dictionary containing the attributes and their counts.
                 - 'signal_type' (dict): The count of unique signal types.
-                - 'array_index' (dict): The count of unique array indices.
                 - 'recording_type' (dict): The count of unique recording types.
                 - 'clamped' (dict): The count of unique clamp types.
                 - 'channel_grouping' (dict): The count of unique channel groupings.
@@ -285,7 +267,6 @@ class ChannelInformation:
         """
 
         signal_type, signal_type_count = np.unique(self.signal_type, return_counts=True)
-        array_index, array_index_count = np.unique(self.array_index, return_counts=True)
         recording_type, recording_type_count = np.unique(
             self.recording_type, return_counts=True
         )
@@ -296,7 +277,6 @@ class ChannelInformation:
         unit, unit_idx = np.unique(self.unit, return_counts=True)
         return {
             "signal_type": dict(zip(signal_type, signal_type_count)),
-            "array_index": dict(zip(array_index, array_index_count)),
             "recording_type": dict(zip(recording_type, recording_type_count)),
             "clamped": dict(zip(clamped, clamped_count)),
             "channel_grouping": dict(zip(channel_grouping, channel_grouping_count)),
