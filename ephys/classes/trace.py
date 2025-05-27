@@ -123,7 +123,7 @@ class Trace:
         Returns:
             Any: Subset of the experiment object.
         """
-        
+
         if (
             channels is None
             and signal_type is None
@@ -164,7 +164,6 @@ class Trace:
         else:
             channels = np.array(channels)
         channels_get = np.isin(self.channel_information.channel_number, channels)
-        # TODO: switch to boolean indexing and np.array inside dict as default
         combined_index = np.logical_and.reduce(
             (
                 rec_type_get,
@@ -196,9 +195,7 @@ class Trace:
 
             for channel_index, channel in enumerate(subset_trace.channel):
                 if combined_index[channel_index]:
-                    channel.data = channel.data[
-                        sweep_subset, :
-                    ]
+                    channel.data = channel.data[sweep_subset, :]
                 else:
                     subset_trace.channel = np.delete(
                         subset_trace.channel, channel_index
@@ -343,8 +340,10 @@ class Trace:
         window_end_index = _get_time_index(trace_copy.time[0, :], window[1])
         sweep_subset = _get_sweep_subset(trace_copy.time, sweep_subset)
         for subset_channel_index, subset_channel in enumerate(trace_copy.channel):
-            if not np.isin(trace_copy.channel_information.channel_number[subset_channel_index],
-                           subset_channels.channel_number):
+            if not np.isin(
+                trace_copy.channel_information.channel_number[subset_channel_index],
+                subset_channels.channel_number,
+            ):
                 continue
             if median:
                 subset_channel.data.magnitude[
@@ -366,7 +365,7 @@ class Trace:
                     axis=1,
                     keepdims=True,
                 )
-        
+
         if not overwrite:
             return trace_copy
         return None
@@ -490,7 +489,7 @@ class Trace:
             sweep_subset=sweep_subset,
             in_place=True,
         )
-        
+
         for channel in avg_trace.channel:
             channel.channel_average()
 
