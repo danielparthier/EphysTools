@@ -15,12 +15,12 @@ class Events:
     """
 
     def __init__(self, trace: Trace) -> None:
-        self.trace = trace
-        self.events = []
-        self.event_times = []
-        self.sweep_numbers = []
-        self.event_names = []
-    
+        self.trace: Trace = trace
+        self.events: list = []
+        self.event_times: list = []
+        self.sweep_numbers: list = []
+        self.event_names: list = []
+
     def add_event(self, event_name: str) -> None:
         """
         Add an event to the events list.
