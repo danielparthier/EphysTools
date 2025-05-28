@@ -19,9 +19,13 @@ class MetaData:
     A class representing metadata for experiment files.
 
     Args:
-        file_path (str | list): The path(s) of the file(s) to be added.
-        experimenter (str | list, optional): The name(s) of the experimenter(s).
-                                             Defaults to 'unknown'.
+        file_path (str | list, optional): The path(s) to the file(s) for which metadata is to be created.
+                                           Defaults to an empty string.
+        experimenter (str | list, optional): The name(s) of the experimenter(s). Defaults to 'unknown'.
+        license_number (str, optional): The license number associated with the experiment. Defaults to 'unknown'.
+        subject_id (str, optional): The ID of the subject involved in the experiment. Defaults to 'unknown'.
+        date_of_birth (str, optional): The date of birth of the subject in 'YYYY-MM-DD' format. Defaults to 'YYYY-MM-DD'.
+        sex (str, optional): The sex of the subject. Defaults to 'unknown'.
 
     Attributes:
         file_info (numpy.ndarray): An array containing information about the file(s).
@@ -44,6 +48,7 @@ class MetaData:
     ) -> None:
         self.file_info = np.array([])
         self.experiment_info = np.array([])
+        self.subject_info = np.array([])
         if file_path != "":
             self.add_file_info(file_path, experimenter, add=False)
 
@@ -51,23 +56,45 @@ class MetaData:
         self,
         file_path: str | list,
         experimenter: str | list = "unknown",
+        license_number: str = "unknown",
+        subject_id: str = "unknown",
+        species: str | list = ["mouse", "rat", "human"],
+        strain: str | list = ["C57BL/6J"],
+        genotype: str = "WT",
+        date_of_birth: str = "YYYY-MM-DD",
+        sex: str = "unknown",
         add: bool = True,
     ) -> None:
         """
         Adds file information to the MetaData object.
-
         Args:
             file_path (str | list): The path(s) of the file(s) to be added.
             experimenter (str | list, optional): The name(s) of the experimenter(s).
-                                                 Defaults to 'unknown'.
-            add (bool, optional): Whether to append the information to existing data.
-                                  Defaults to True.
+                Defaults to 'unknown'.
+            license_number (str, optional): The license number associated with the experiment.
+                Defaults to 'unknown'.
+            subject_id (str, optional): The ID of the subject involved in the experiment.
+                Defaults to 'unknown'.
+            species (str | list, optional): The species of the subject.
+                Defaults to ['mouse', 'rat', 'human'].
+            strain (str | list, optional): The strain of the subject.
+                Defaults to ['C57BL/6J'].
+            genotype (str, optional): The genotype of the subject.
+                Defaults to 'WT'.
+            date_of_birth (str, optional): The date of birth of the subject in 'YYYY-MM-DD' format.
+                Defaults to 'YYYY-MM-DD'.
+            sex (str, optional): The sex of the subject.
+                Defaults to 'unknown'.
+            add (bool, optional): If True, appends the new file information to existing data.
+                Defaults to True.
         """
+
 
         if isinstance(file_path, str):
             file_path = [file_path]
         file_list = []
         experiment_list = []
+        subject_list = []
         for file in file_path:
             time_created = time.ctime(os.path.getctime(file))
             time_modified = time.ctime(os.path.getmtime(file))
@@ -84,17 +111,31 @@ class MetaData:
                 }
             )
             experiment_list.append(
-                {"date_of_experiment": estimated_exp_date, "experimenter": experimenter}
+                {"date_of_experiment": estimated_exp_date, "experimenter": experimenter,
+                 "license": license_number}
             )
+            subject_list.append(
+                {
+                    "species": species,
+                    "strain": strain,
+                    "genotype": genotype,
+                    "subject_id": subject_id,
+                    "date_of_birth": date_of_birth,
+                    "sex": sex,
+                }
+            )
+
             print("Date of Experiment estimated. Please check for correct date.")
         if add:
             self.file_info = np.append(self.file_info, np.array(file_list))
             self.experiment_info = np.append(
                 self.experiment_info, np.array(experiment_list)
             )
+            self.subject_list = np.append(self.subject_list, np.array(subject_list))
         else:
             self.file_info = np.array(file_list)
             self.experiment_info = np.array(experiment_list)
+            self.subject_info = np.array(subject_list)
 
     def remove_file_info(self, file_path: str | list) -> None:
         """
