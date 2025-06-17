@@ -20,6 +20,7 @@ Dependencies:
 from typing import Any
 from copy import deepcopy
 import numpy as np
+from uuid import uuid4
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from quantities import Quantity
@@ -81,6 +82,7 @@ class Trace:
             abf_trace(self, file_path, quick_check)
         else:
             print("File type not supported")
+        self.object_id = str(uuid4())
 
     def copy(self) -> Any:
         """
