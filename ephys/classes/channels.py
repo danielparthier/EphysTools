@@ -190,7 +190,7 @@ class ChannelInformation:
                     elif len(findall(r"Vm", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("voltage")
-                    elif len(findall(r"Im", i[0])) == 1:
+                    elif len(findall(r"Im|Icom", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("current")
                     channel_groups.append(i["stream_id"].astype(int).tolist())
