@@ -10,6 +10,7 @@ Classes:
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from re import findall
+import datetime
 import numpy as np
 import pandas as pd
 from quantities import Quantity
@@ -67,6 +68,7 @@ class Channel:
         self.clamped: bool | None = None
         self.sampling_rate: Quantity = Quantity(0, "Hz")
         self.starting_time: Quantity = Quantity(np.zeros(self.sweep_count), "s")
+        self.rec_datetime: datetime.datetime | None = None
         self.check_clamp()
 
     def insert_data(self, data: np.ndarray, sweep_count: int) -> None:

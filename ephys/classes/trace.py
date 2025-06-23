@@ -17,13 +17,14 @@ Dependencies:
     - ephys.classes.class_functions
 """
 
-from typing import Any
+from typing import Any, Optional
 from copy import deepcopy
 import numpy as np
 from uuid import uuid4
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from quantities import Quantity
+from datetime import datetime
 
 from ephys import utils
 from ephys.classes.class_functions import (
@@ -34,7 +35,6 @@ from ephys.classes.class_functions import (
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
 from ephys.classes.window_functions import FunctionOutput
-
 
 class Trace:
     """
@@ -72,9 +72,11 @@ class Trace:
         self.file_path = file_path
         self.time = Quantity(np.array([]), units="s")
         self.sampling_rate = None
+        self.rec_datetime: Optional[datetime] = None
         self.channel = np.array([])
         self.channel_information = ChannelInformation()
         self.sweep_count = None
+        self.object_id = str(uuid4())
         self.window_summary = FunctionOutput()
         if file_path.endswith(".wcp"):
             wcp_trace(self, file_path, quick_check)
@@ -82,7 +84,8 @@ class Trace:
             abf_trace(self, file_path, quick_check)
         else:
             print("File type not supported")
-        self.object_id = str(uuid4())
+        if self.sampling_rate is not None:
+            self.rec_datetime = self.channel[0].rec_datetime
 
     def copy(self) -> Any:
         """
