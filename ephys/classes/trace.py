@@ -35,6 +35,7 @@ from ephys.classes.class_functions import (
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
 from ephys.classes.window_functions import FunctionOutput
+import pyqtgraph as pg
 
 class Trace:
     """
@@ -556,7 +557,7 @@ class Trace:
         trace_select = self.subset(
             channels=channels, signal_type=signal_type, sweep_subset=sweep_subset
         )
-
+        
         fig, channel_axs = plt.subplots(len(trace_select.channel), 1, sharex=True)
 
         if len(trace_select.channel) == 0:
@@ -621,6 +622,114 @@ class Trace:
         if return_fig:
             return fig, channel_axs
         return None
+
+    def plot_qt(
+        self,
+        signal_type: str = "",
+        channels: np.ndarray = np.array([], dtype=np.int64),
+        average: bool = False,
+        color: str = "white",
+        alpha: float = 0.5,
+        avg_color: str = "red",
+        align_onset: bool = True,
+        sweep_subset: Any = None,
+        window: tuple = (0, 0),
+        xlim: tuple = (),
+        show: bool = True,
+    ) -> None | pg.GraphicsLayoutWidget:
+        """
+        Plots the traces for the specified channels.
+
+        Args:
+            signal_type (str): The type of signal_type to use. Must be either 'current' or
+            'voltage'.
+            channels (list, optional): The list of channels to plot. If None, all channels
+            will be plotted.
+                Defaults to None.
+            average (bool, optional): Whether to plot the average trace.
+                Defaults to False.
+            color (str, optional): The color of the individual traces. Can be a colormap.
+                Defaults to 'black'.
+            alpha (float, optional): The transparency of the individual traces.
+                Defaults to 0.5.
+            avg_color (str, optional): The color of the average trace.
+                Defaults to 'red'.
+            align_onset (bool, optional): Whether to align the traces on the onset.
+                Defaults to True.
+            sweep_subset (Any, optional): The subset of sweeps to plot.
+                Defaults to None.
+            window (tuple, optional): The time window to plot.
+                Defaults to (0, 0).
+            show (bool, optional): Whether to display the plot.
+                Defaults to True.
+            return_fig (bool, optional): Whether to return the figure.
+                Defaults to False.
+
+        Returns:
+            None or Figure: If show is True, returns None. If return_fig is True,
+            returns the figure.
+        """
+
+        if len(channels) == 0:
+            channels = self.channel_information.channel_number
+        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        trace_select = self.subset(
+            channels=channels, signal_type=signal_type, sweep_subset=sweep_subset
+        )
+        if len(xlim) > 2:
+            xlim = (xlim[0], xlim[1])
+        elif len(xlim) < 2:
+            xlim = (np.min(trace_select.time.magnitude), np.max(trace_select.time.magnitude))
+        
+        # Use pyqtgraph for plotting in this method
+        win = pg.GraphicsLayoutWidget(show=show, title="Trace Plot")
+        if show:
+            channel_0: pg.PlotItem | None = None
+            for channel_index, channel in enumerate(trace_select.channel):
+                channel_tmp = win.addPlot(row=channel_index, col=0) # type: ignore
+                if channel_index == 0:
+                    channel_0 = channel_tmp
+                channel_tmp.setXLink(channel_0)
+                channel_tmp.setLabel(
+                    "left",
+                    f"Channel {trace_select.channel_information.channel_number[channel_index]} "
+                    f"({trace_select.channel_information.unit[channel_index]})",
+                )
+                channel_tmp.setLabel(
+                    "bottom",
+                    f"Time ({trace_select.time.units.dimensionality.string})",
+                )
+                viewBox = channel_tmp.getViewBox()
+                viewBox.setXRange(xlim[0], xlim[1])
+                for i in range(channel.data.shape[0]):
+                #    print(channel.data[i])
+                    qt_color = utils.color_picker_QColor(length=channel.data.shape[0],
+                                                         index=i,
+                                                         color=color,
+                                                         alpha=alpha)
+                    channel_tmp.plot(
+                        trace_select.time[i],
+                        channel.data[i],
+                        pen=pg.mkPen(
+                            color=qt_color,
+                            width=1,
+                        ),
+                    )
+
+                if average:
+                    channel.channel_average(sweep_subset=sweep_subset)
+                    channel_tmp.plot(
+                        trace_select.time[0, :],
+                        channel.average.trace,
+                        pen=pg.mkPen(color="red", width=2),
+           #             name=f"Ch{trace_select.channel_information.channel_number[channel_index]} Avg",
+                    )
+                # Optionally shade window
+                if window != (0, 0):
+                    region = pg.LinearRegionItem(values=window, brush=(200, 200, 200, 50))
+                    win.addItem(region)
+        return win
+
 
     def plot_summary(
         self,
