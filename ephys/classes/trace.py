@@ -69,7 +69,7 @@ class Trace:
             parameters.
     """
 
-    def __init__(self, file_path: str, quick_check: bool = True) -> None:
+    def __init__(self, file_path: str ="", quick_check: bool = True) -> None:
         self.file_path = file_path
         self.time = Quantity(np.array([]), units="s")
         self.sampling_rate = None
@@ -79,6 +79,17 @@ class Trace:
         self.sweep_count = None
         self.object_id = str(uuid4())
         self.window_summary = FunctionOutput()
+        if self.file_path and len(self.file_path) > 0:
+            self.load(file_path, quick_check)
+
+    def load(self, file_path: str, quick_check: bool = True) -> None:
+        """
+        Load the trace data from a file.
+
+        Args:
+            file_path (str): The path to the file to load.
+            quick_check (bool, optional): If True, performs a quick check of the file.
+        """
         if file_path.endswith(".wcp"):
             wcp_trace(self, file_path, quick_check)
         elif file_path.endswith(".abf"):
