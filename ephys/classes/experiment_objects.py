@@ -216,7 +216,6 @@ class MetaData:
                 time_list.append(time_rec)
             time_list.sort()
             estimated_exp_date = time_list[0]
-            # NOTE: abf files have date of experiment in the header
             file_list.append(
                 {
                     "data_of_creation": time_created,
