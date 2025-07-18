@@ -407,7 +407,7 @@ class TracePlotPyQt(TracePlot):
             channel_box.setXRange(self.params.xlim[0], self.params.xlim[1])
 
             for i in range(channel.data.shape[0]):
-                qt_color = utils.color_picker_QColor(
+                qt_color = utils.color_picker_qcolor(
                     length=channel.data.shape[0],
                     index=i,
                     color=self.params.color,
