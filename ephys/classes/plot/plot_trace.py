@@ -36,6 +36,9 @@ class PlotParams:
         xlim (tuple[float, float]): X-axis limits.
         show (bool): Whether to show the plot.
         return_fig (bool): Whether to return the figure object.
+        window_mode (str): Mode for handling windows
+            ('use_plot', 'use_trace', 'add_to_trace').
+        theme (str): Theme for the plot ('dark' or 'light').
     """
 
     signal_type: str = ""  # 'current' or 'voltage'
@@ -55,13 +58,17 @@ class PlotParams:
     xlim: tuple[float, float] = field(default_factory=tuple)  # X-axis limits
     show: bool = True  # Whether to show the plot
     return_fig: bool = False  # Whether to return the figure object
+    window_mode: str = (
+        "add_to_trace"  # Options: "use_plot", "use_trace", "add_to_trace"
+    )
+    theme: str = "dark"
 
-    if theme := "dark":
+    if theme == "dark":
         color = "white"
         bg_color = "black"
         axis_color = "white"
         window_color = "gray"
-    elif theme := "light":
+    elif theme == "light":
         color = "black"
         bg_color = "white"
         axis_color = "black"
@@ -107,12 +114,60 @@ class TracePlot:
             else:
                 raise ValueError(f"Invalid parameter: {key}")
 
+    def handle_windows(self) -> list:
+        """Handle window interaction between plot parameters and trace"""
+
+        # Initialize windows to display
+        windows_to_display = []
+
+        # Case 1: Add the plot windows to trace.window
+        if self.params.window_mode == "add_to_trace":
+            # Convert input to proper format
+            if isinstance(self.params.window, tuple):
+                plot_windows = [self.params.window]
+            elif isinstance(self.params.window, list):
+                plot_windows = self.params.window
+            else:
+                raise TypeError("Window must be a tuple or list of tuples.")
+
+            # Initialize trace.window if it doesn't exist
+            if self.trace.window is None:
+                self.trace.window = []
+
+            # Add new windows from plot parameters
+            if plot_windows != [(0, 0)]:
+                # Add each new window to trace.window
+                for win in plot_windows:
+                    if win not in self.trace.window:
+                        self.trace.window.append(win)
+
+            # Use the updated trace.window for display
+            windows_to_display = self.trace.window
+
+        # Case 2: Use existing trace.window
+        elif self.params.window_mode == "use_trace":
+            # Use existing trace.window for display
+            if self.trace.window is None or len(self.trace.window) == 0:
+                windows_to_display = []
+            else:
+                windows_to_display = self.trace.window
+
+        # Case 3: Use windows from plot without modifying trace.window
+        else:  # self.params.window_mode == "use_plot"
+            if isinstance(self.params.window, tuple):
+                windows_to_display = [self.params.window]
+            elif isinstance(self.params.window, list):
+                windows_to_display = self.params.window
+            else:
+                raise TypeError("Window must be a tuple or list of tuples.")
+        return windows_to_display
+
 
 class TracePlotMatplotlib(TracePlot):
     """Class for plotting traces using Matplotlib."""
 
     def __init__(self, trace: Trace, backend: str = "matplotlib", **kwargs) -> None:
-        super().__init__(trace, backend=backend, **kwargs)
+        super().__init__(trace=trace, backend=backend, **kwargs)
 
     def plot(
         self,
@@ -154,7 +209,9 @@ class TracePlotMatplotlib(TracePlot):
             self.update_params(**kwargs)
         if len(self.params.channels) == 0:
             self.params.channels = self.trace.channel_information.channel_number
-        sweep_subset = _get_sweep_subset(self.trace.time, self.params.sweep_subset)
+        sweep_subset = _get_sweep_subset(
+            array=self.trace.time, sweep_subset=self.params.sweep_subset
+        )
         trace_select = self.trace.subset(
             channels=self.params.channels,
             signal_type=self.params.signal_type,
@@ -169,7 +226,7 @@ class TracePlotMatplotlib(TracePlot):
 
         fig.set_facecolor(self.params.bg_color)
         if isinstance(channel_axs, Axes):
-            channel_axs.set_facecolor(self.params.bg_color)
+            channel_axs.set_facecolor(color=self.params.bg_color)
         elif isinstance(channel_axs, np.ndarray):
             for axs in channel_axs:
                 axs.set_facecolor(self.params.bg_color)
@@ -188,6 +245,8 @@ class TracePlotMatplotlib(TracePlot):
             )
         else:
             time_array = trace_select.time
+
+        windows_to_display = self.handle_windows()
 
         tmp_axs: Axes | None = None
         for channel_index, channel in enumerate(trace_select.channel):
@@ -210,20 +269,16 @@ class TracePlotMatplotlib(TracePlot):
                         ),
                         alpha=self.params.alpha,
                     )
-                if self.params.window != [(0, 0)]:
-                    if isinstance(self.params.window, tuple):
-                        self.trace.window = [self.params.window]
-                    elif isinstance(self.params.window, list):
-                        self.trace.window = self.params.window
-                    else:
-                        raise TypeError("Window must be a tuple or list of tuples.")
+
+                if windows_to_display != [(0, 0)]:
                     if (
-                        isinstance(self.trace.window, list)
-                        and len(self.trace.window) == 0
+                        isinstance(windows_to_display, list)
+                        and len(windows_to_display) == 0
                     ):
                         raise ValueError("Window list is empty.")
-                    for win in self.trace.window:
+                    for win in windows_to_display:
                         if isinstance(tmp_axs, Axes):
+                            print(f"Window: {win} theme: {self.params.theme}")
                             tmp_axs.axvspan(
                                 xmin=win[0],
                                 xmax=win[1],
@@ -238,15 +293,15 @@ class TracePlotMatplotlib(TracePlot):
                         color=self.params.avg_color,
                     )
                 tmp_axs.set_ylabel(
-                    f"Channel {trace_select.channel_information.channel_number[channel_index]} "
+                    ylabel=f"Channel {trace_select.channel_information.channel_number[channel_index]} "
                     f"({trace_select.channel_information.unit[channel_index]})"
                 )
         if isinstance(tmp_axs, Axes):
             tmp_axs.set_xlabel(
-                f"Time ({trace_select.time.units.dimensionality.string})"
+                xlabel=f"Time ({trace_select.time.units.dimensionality.string})"
             )
             if len(self.params.xlim) == 2:
-                tmp_axs.set_xlim(self.params.xlim[0], self.params.xlim[1])
+                tmp_axs.set_xlim(left=self.params.xlim[0], right=self.params.xlim[1])
         plt.tight_layout()
         if self.params.show:
             plt.show()
@@ -259,7 +314,7 @@ class TracePlotPyQt(TracePlot):
     """Class for plotting traces using PyQtGraph."""
 
     def __init__(self, trace: Trace, backend: str = "pyqt", **kwargs):
-        super().__init__(trace, backend=backend, **kwargs)
+        super().__init__(trace=trace, backend=backend, **kwargs)
 
     def plot(
         self,
@@ -310,14 +365,15 @@ class TracePlotPyQt(TracePlot):
                     r.blockSignals(True)
                     r.setRegion((min_val, max_val))
                     r.blockSignals(False)
-
-            # Update the trace window property
-            if isinstance(self.trace.window, list):
-                self.trace.window[window_index] = (min_val, max_val)
-            elif isinstance(self.trace.window, tuple):
-                self.trace.window = (min_val, max_val)
-            else:
-                raise TypeError("Window must be a tuple or list of tuples.")
+            # Update the trace window property only if we're not in "use_plot" mode
+            if self.params.window_mode != "use_plot":
+                if isinstance(self.trace.window, list) and window_index < len(
+                    self.trace.window
+                ):
+                    self.trace.window[window_index] = (min_val, max_val)
+                else:
+                    # Handle case where window_index is out of bounds or trace.window is not a list
+                    pass
 
         def make_region_callback(region_obj, channel_items, window_index=0):
             return lambda: sync_channels(
@@ -365,18 +421,12 @@ class TracePlotPyQt(TracePlot):
             )
         )
         # Handle window regions for interactive selection
-        if self.params.window is not None:
-            if isinstance(self.params.window, tuple):
-                self.trace.window = [self.params.window]
-            elif isinstance(self.params.window, list):
-                self.trace.window = self.params.window
-            else:
-                raise TypeError("Window must be a tuple or list of tuples.")
+        windows_to_display = self.handle_windows()
+        if windows_to_display is not None:
             window_items: list[list[pg.LinearRegionItem]] = [
-                [] for _ in range(len(self.trace.window))
+                [] for _ in range(len(windows_to_display))
             ]
         else:
-            self.trace.window = [(0, 0)]
             window_items: list[list[pg.LinearRegionItem]] = [[]]
 
         region: pg.LinearRegionItem | None = None
@@ -421,18 +471,18 @@ class TracePlotPyQt(TracePlot):
                         # width=1,
                     ),
                 )
-            if self.params.window != [(0, 0)]:
+            if windows_to_display != [(0, 0)]:
                 for win_index, win_item in enumerate(window_items):
                     if isinstance(window_items, list) and len(window_items) > 0:
                         region = pg.LinearRegionItem(
-                            values=self.trace.window[win_index],
+                            values=windows_to_display[win_index],
                             pen=pg.mkPen(color=self.params.window_color),
                             brush=window_fill,
                             hoverBrush=window_fill_hover,
                         )
                     elif isinstance(window_items, tuple):
                         region = pg.LinearRegionItem(
-                            values=self.trace.window,
+                            values=windows_to_display,
                             pen=pg.mkPen(color=self.params.window_color),
                             brush=window_fill,
                             hoverBrush=window_fill_hover,

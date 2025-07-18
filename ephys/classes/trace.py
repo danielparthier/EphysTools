@@ -82,7 +82,7 @@ class Trace:
         self.sweep_count: int | None = None
         self.object_id: str = str(uuid4())
         self.window_summary: FunctionOutput = FunctionOutput()
-        self.window: None | tuple | list = None
+        self.window: None | list = None
         if self.file_path and len(self.file_path) > 0:
             self.load(file_path=self.file_path, quick_check=quick_check)
 
@@ -414,8 +414,6 @@ class Trace:
             raise IndexError("Index out of range for the window list.")
         if isinstance(self.window, list):
             return self.window[index]
-        if isinstance(self.window, tuple):
-            return self.window[index] if index < len(self.window) else None
 
     def add_window(
         self,
@@ -433,6 +431,9 @@ class Trace:
             if isinstance(self.window, list):
                 self.window.append(window)
         elif isinstance(window, list):
+            for win in window:
+                if not isinstance(win, tuple) or len(win) != 2:
+                    raise TypeError("Each window must be a tuple of length 2.")
             if self.window is None:
                 self.window = window
             if isinstance(self.window, list):
@@ -453,7 +454,7 @@ class Trace:
                 window. Defaults to None.
         """
         if self.window is None:
-            return
+            return None
         if index is None and not all:
             index = -1
         if all:
