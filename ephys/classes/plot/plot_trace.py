@@ -278,12 +278,11 @@ class TracePlotMatplotlib(TracePlot):
                         raise ValueError("Window list is empty.")
                     for win in windows_to_display:
                         if isinstance(tmp_axs, Axes):
-                            print(f"Window: {win} theme: {self.params.theme}")
                             tmp_axs.axvspan(
                                 xmin=win[0],
                                 xmax=win[1],
                                 color=self.params.window_color,
-                                alpha=0.1,
+                                alpha=0.5,
                             )
                 if self.params.average:
                     channel.channel_average(sweep_subset=sweep_subset)
