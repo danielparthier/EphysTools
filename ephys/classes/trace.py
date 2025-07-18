@@ -17,16 +17,14 @@ Dependencies:
     - ephys.classes.class_functions
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+from typing import Any, Optional, TYPE_CHECKING
 from copy import deepcopy
 from datetime import datetime
 from uuid import uuid4
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 from quantities import Quantity
 import pyqtgraph as pg
-from PySide6 import QtCore
 
 from ephys import utils
 from ephys.classes.class_functions import (
@@ -37,6 +35,10 @@ from ephys.classes.class_functions import (
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
 from ephys.classes.window_functions import FunctionOutput
+
+if TYPE_CHECKING:
+    from ephys.classes.plot.plot_trace import TracePlotPyQt, TracePlotMatplotlib
+
 
 class Trace:
     """
@@ -80,9 +82,9 @@ class Trace:
         self.sweep_count: int | None = None
         self.object_id: str = str(uuid4())
         self.window_summary: FunctionOutput = FunctionOutput()
-        self.window: tuple | list = (0, 0)
+        self.window: None | tuple | list = None
         if self.file_path and len(self.file_path) > 0:
-            self.load(file_path, quick_check)
+            self.load(file_path=self.file_path, quick_check=quick_check)
 
     def load(self, file_path: str, quick_check: bool = True) -> None:
         """
@@ -93,9 +95,9 @@ class Trace:
             quick_check (bool, optional): If True, performs a quick check of the file.
         """
         if file_path.endswith(".wcp"):
-            wcp_trace(self, file_path, quick_check)
+            wcp_trace(trace=self, file_path=file_path, quick_check=quick_check)
         elif file_path.endswith(".abf"):
-            abf_trace(self, file_path, quick_check)
+            abf_trace(trace=self, file_path=file_path, quick_check=quick_check)
         else:
             print("File type not supported")
         if self.sampling_rate is not None:
@@ -155,13 +157,13 @@ class Trace:
                 return self.channel_information
             return self
 
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        sweep_subset = _get_sweep_subset(array=self.time, sweep_subset=sweep_subset)
         if in_place:
             subset_trace = self
         else:
             subset_trace = self.copy()
-        rec_type_get = utils.string_match(
-            rec_type, self.channel_information.recording_type
+        rec_type_get: np.ndarray = utils.string_match(
+            pattern=rec_type, string_list=self.channel_information.recording_type
         )
         if clamp_type is None:
             clamp_type = np.array([True, False])
@@ -252,9 +254,9 @@ class Trace:
         - Trace or None
         """
 
-        tmp_time = deepcopy(self.time)
-        time_unit = tmp_time.units
-        start_time = Quantity(0, time_unit)
+        tmp_time: Quantity = deepcopy(self.time)
+        time_unit: Quantity = tmp_time.units
+        start_time = Quantity(data=0, units=time_unit)
         if self.sampling_rate is None:
             raise ValueError(
                 "Sampling rate is not set."
@@ -263,20 +265,20 @@ class Trace:
         sampling_interval = (1 / self.sampling_rate).rescale(time_unit).magnitude
 
         for sweep_index, sweep in enumerate(tmp_time):
-            sweep = Quantity(sweep, time_unit)
+            sweep = Quantity(data=sweep, units=time_unit)
             if align_to_zero:
-                start_time = Quantity(np.min(sweep.magnitude), time_unit)
+                start_time = Quantity(data=np.min(sweep.magnitude), units=time_unit)
             if cumulative:
                 if sweep_index > 0:
                     start_time = Quantity(
-                        Quantity(
-                            np.min(sweep.magnitude)
+                        data=Quantity(
+                            data=np.min(sweep.magnitude)
                             - np.max(tmp_time[sweep_index - 1].magnitude),
-                            time_unit,
+                            units=time_unit,
                         ).magnitude
                         - stimulus_interval
                         - sampling_interval,
-                        time_unit,
+                        units=time_unit,
                     )
             tmp_time[sweep_index] -= start_time
         if overwrite_time:
@@ -296,7 +298,7 @@ class Trace:
         - None
         """
 
-        self.time = self.time.rescale(time_unit)
+        self.time = self.time.rescale(units=time_unit)
 
     def subtract_baseline(
         self,
@@ -389,6 +391,79 @@ class Trace:
             return trace_copy
         return None
 
+    def get_window(
+        self,
+        index: int | None = None,
+    ) -> tuple | list | None:
+        """
+        Get the current window of the trace.
+
+        Args:
+            index (int, optional): The index of the window to retrieve. If None, returns the
+                entire window. Defaults to None.
+
+        Returns:
+            tuple or list: The current window of the trace.
+        """
+        if self.window is None:
+            print("No window set for the trace.")
+            return None
+        if index is None:
+            return self.window
+        if self.window is not None and (index < 0 or index >= len(self.window)):
+            raise IndexError("Index out of range for the window list.")
+        if isinstance(self.window, list):
+            return self.window[index]
+        if isinstance(self.window, tuple):
+            return self.window[index] if index < len(self.window) else None
+
+    def add_window(
+        self,
+        window: tuple | list,
+    ) -> None:
+        """
+        Add a window for the trace.
+
+        Args:
+            window (tuple or list): The window to set for the trace.
+        """
+        if isinstance(window, tuple):
+            if self.window is None:
+                self.window = [window]
+            if isinstance(self.window, list):
+                self.window.append(window)
+        elif isinstance(window, list):
+            if self.window is None:
+                self.window = window
+            if isinstance(self.window, list):
+                self.window.extend(window)
+        else:
+            raise ValueError("Window must be a tuple or a list.")
+
+    def remove_window(
+        self,
+        index: int | None = None,
+        all: bool = False,
+    ) -> None:
+        """
+        Remove a window from the trace.
+
+        Args:
+            index (int, optional): The index of the window to remove. If None, removes the last
+                window. Defaults to None.
+        """
+        if self.window is None:
+            return
+        if index is None and not all:
+            index = -1
+        if all:
+            self.window = None
+        if isinstance(self.window, list):
+            if index is not None and 0 <= index < len(self.window):
+                del self.window[index]
+            else:
+                self.window.pop()
+
     def window_function(
         self,
         window: list | None = None,
@@ -468,7 +543,7 @@ class Trace:
             subset_channels.plot(trace=subset_channels, show=True, window_data=output)
         if return_output:
             return output
-        self.window_summary.merge(output)
+        self.window_summary.merge(window_summary=output)
         return None
 
     def average_trace(
@@ -497,7 +572,7 @@ class Trace:
             channels = self.channel_information.channel_number
         if signal_type is None:
             signal_type = ["voltage", "current"]
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        sweep_subset = _get_sweep_subset(array=self.time, sweep_subset=sweep_subset)
         if in_place:
             avg_trace = self
         else:
@@ -529,321 +604,15 @@ class Trace:
         Returns:
             None or pg.GraphicsLayoutWidget: If using pyqtgraph, returns the plot widget.
         """
+        from ephys.classes.plot.plot_trace import TracePlotPyQt, TracePlotMatplotlib
+
         if backend == "matplotlib":
-            return self._plot_matplotlib(**kwargs)
-        elif backend == "pyqt":
-            return self._plot_qt(**kwargs)
-        else:
-            raise ValueError("Unsupported backend. Use 'matplotlib' or 'pyqt'.")
-
-    def _plot_matplotlib(
-        self,
-        signal_type: str = "",
-        channels: np.ndarray = np.array([], dtype=np.int64),
-        average: bool = False,
-        color: str = "black",
-        alpha: float = 0.5,
-        avg_color: str = "red",
-        align_onset: bool = True,
-        sweep_subset: Any = None,
-        window: tuple | list = (
-            0,
-            0,
-        ),  # NOTE: could use self.window to keep track of the last used window
-        xlim: tuple = (),
-        show: bool = True,
-        return_fig: bool = False,
-    ) -> None | tuple:
-        """
-        Plots the traces for the specified channels.
-
-        Args:
-            signal_type (str): The type of signal_type to use. Must be either 'current' or
-            'voltage'.
-            channels (list, optional): The list of channels to plot. If None, all channels
-            will be plotted.
-                Defaults to None.
-            average (bool, optional): Whether to plot the average trace.
-                Defaults to False.
-            color (str, optional): The color of the individual traces. Can be a colormap.
-                Defaults to 'black'.
-            alpha (float, optional): The transparency of the individual traces.
-                Defaults to 0.5.
-            avg_color (str, optional): The color of the average trace.
-                Defaults to 'red'.
-            align_onset (bool, optional): Whether to align the traces on the onset.
-                Defaults to True.
-            sweep_subset (Any, optional): The subset of sweeps to plot.
-                Defaults to None.
-            window (tuple, optional): The time window to plot.
-                Defaults to (0, 0).
-            show (bool, optional): Whether to display the plot.
-                Defaults to True.
-            return_fig (bool, optional): Whether to return the figure.
-                Defaults to False.
-
-        Returns:
-            None or Figure: If show is True, returns None. If return_fig is True,
-            returns the figure.
-        """
-
-        if len(channels) == 0:
-            channels = self.channel_information.channel_number
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        trace_select = self.subset(
-            channels=channels, signal_type=signal_type, sweep_subset=sweep_subset
-        )
-
-        fig, channel_axs = plt.subplots(len(trace_select.channel), 1, sharex=True)
-
-        if len(trace_select.channel) == 0:
-            print("No traces found.")
-            return None
-
-        if align_onset:
-            time_array = trace_select.set_time(
-                align_to_zero=True,
-                cumulative=False,
-                stimulus_interval=0.0,
-                overwrite_time=False,
-            )
-        else:
-            time_array = trace_select.time
-
-        tmp_axs: Axes | None = None
-        for channel_index, channel in enumerate(trace_select.channel):
-            if len(trace_select.channel) == 1:
-                if isinstance(channel_axs, Axes):
-                    tmp_axs = channel_axs
-            else:
-                if isinstance(channel_axs, np.ndarray):
-                    if isinstance(channel_axs[channel_index], Axes):
-                        tmp_axs = channel_axs[channel_index]
-            if tmp_axs is None:
-                pass
-            else:
-                for i in range(channel.data.shape[0]):
-                    tmp_axs.plot(
-                        time_array[i, :],
-                        channel.data[i, :],
-                        color=utils.trace_color(
-                            traces=channel.data, index=i, color=color
-                        ),
-                        alpha=alpha,
-                    )
-                if window != (0, 0):
-                    if isinstance(window, tuple):
-                        self.window = [window]
-                    elif isinstance(window, list):
-                        self.window = window
-                    else:
-                        raise TypeError("Window must be a tuple or list of tuples.")
-                    if isinstance(window, list) and len(window) == 0:
-                        raise ValueError("Window list is empty.")
-                    for win in window:
-                        if isinstance(tmp_axs, Axes):
-                            tmp_axs.axvspan(
-                                xmin=win[0], xmax=win[1], color="gray", alpha=0.1
-                            )
-                if average:
-                    channel.channel_average(sweep_subset=sweep_subset)
-                    tmp_axs.plot(
-                        time_array[0, :], channel.average.trace, color=avg_color
-                    )
-                tmp_axs.set_ylabel(
-                    f"Channel {trace_select.channel_information.channel_number[channel_index]} "
-                    f"({trace_select.channel_information.unit[channel_index]})"
-                )
-        #   tmp_axs.set_ylabel(f'Channel')
-        if isinstance(tmp_axs, Axes):
-            tmp_axs.set_xlabel(
-                f"Time ({trace_select.time.units.dimensionality.string})"
-            )
-            if len(xlim) > 0:
-                tmp_axs.set_xlim(xlim[0], xlim[1])
-        plt.tight_layout()
-        if show:
-            plt.show()
-        #            return None
-        if return_fig:
-            return fig, channel_axs
-        return None
-
-    def _plot_qt(
-        self,
-        signal_type: str = "",
-        channels: np.ndarray = np.array([], dtype=np.int64),
-        average: bool = False,
-        color: str = "white",
-        alpha: float = 0.5,
-        avg_color: str = "red",
-        align_onset: bool = True,
-        sweep_subset: Any = None,
-        window: tuple | list = (0, 0),
-        xlim: tuple = (),
-        show: bool = True,
-        return_fig: bool = False,
-    ) -> None | pg.GraphicsLayoutWidget:
-        """
-        Plots the traces for the specified channels.
-
-        Args:
-            signal_type (str): The type of signal_type to use. Must be either 'current' or
-            'voltage'.
-            channels (list, optional): The list of channels to plot. If None, all channels
-            will be plotted.
-                Defaults to None.
-            average (bool, optional): Whether to plot the average trace.
-                Defaults to False.
-            color (str, optional): The color of the individual traces. Can be a colormap.
-                Defaults to 'black'.
-            alpha (float, optional): The transparency of the individual traces.
-                Defaults to 0.5.
-            avg_color (str, optional): The color of the average trace.
-                Defaults to 'red'.
-            align_onset (bool, optional): Whether to align the traces on the onset.
-                Defaults to True.
-            sweep_subset (Any, optional): The subset of sweeps to plot.
-                Defaults to None.
-            window (tuple, optional): The time window to plot.
-                Defaults to (0, 0).
-            show (bool, optional): Whether to display the plot.
-                Defaults to True.
-            return_fig (bool, optional): Whether to return the figure.
-                Defaults to False.
-
-        Returns:
-            None or Figure: If show is True, returns None. If return_fig is True,
-            returns the figure.
-        """
-
-        def sync_channels(source_region, channel_items, window_index=0):
-            # Get region bounds from the source region
-            min_val, max_val = source_region.getRegion()
-
-            # Update all other regions
-            for r in channel_items:
-                if r is not source_region:
-                    r.blockSignals(True)
-                    r.setRegion((min_val, max_val))
-                    r.blockSignals(False)
-
-            # Update the trace window property
-            if isinstance(self.window, list):
-                self.window[window_index] = (min_val, max_val)
-            elif isinstance(self.window, tuple):
-                self.window = (min_val, max_val)
-            else:
-                raise TypeError("Window must be a tuple or list of tuples.")
-
-        def make_region_callback(region_obj, channel_items, window_index=0):
-            return lambda: sync_channels(
-                region_obj, channel_items, window_index=window_index
-            )
-
-        if len(channels) == 0:
-            channels = self.channel_information.channel_number
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        trace_select = self.subset(
-            channels=channels, signal_type=signal_type, sweep_subset=sweep_subset
-        )
-
-        if align_onset:
-            time_array = trace_select.set_time(
-                align_to_zero=True,
-                cumulative=False,
-                stimulus_interval=0.0,
-                overwrite_time=False,
-            )
-        else:
-            time_array = trace_select.time
-
-        if len(xlim) > 2:
-            xlim = (xlim[0], xlim[1])
-        elif len(xlim) < 2:
-            xlim = (
-                np.min(time_array.magnitude),
-                np.max(time_array.magnitude),
-            )
-        win = pg.GraphicsLayoutWidget(show=show, title="Trace Plot")
-        # Handle window regions for interactive selection
-        if window is not None:
-            if isinstance(window, tuple):
-                self.window = [window]
-            elif isinstance(window, list):
-                self.window = window
-            else:
-                raise TypeError("Window must be a tuple or list of tuples.")
-            window_items: list[list[pg.LinearRegionItem]] = [[] for _ in range(len(self.window))]
-        else:
-            self.window = [(0, 0)]
-            window_items: list[list[pg.LinearRegionItem]] = [[]]
-
-        region: pg.LinearRegionItem | None = None
-        channel_0: pg.PlotItem | None = None
-        for channel_index, channel in enumerate(trace_select.channel):
-            channel_tmp = win.addPlot(row=channel_index, col=0)  # type: ignore
-            if channel_index == 0:
-                channel_0 = channel_tmp
-            channel_tmp.setXLink(channel_0)
-            channel_tmp.setLabel(
-                "left",
-                f"Channel {trace_select.channel_information.channel_number[channel_index]} "
-                f"({trace_select.channel_information.unit[channel_index]})",
-            )
-
-            if channel_index == len(trace_select.channel) - 1:
-                channel_tmp.setLabel("bottom", "Time (s)")
-
-            channel_tmp.setLabel(
-                "bottom",
-                f"Time ({time_array.units.dimensionality.string})",
-            )
-            viewBox = channel_tmp.getViewBox()
-            viewBox.setXRange(xlim[0], xlim[1])
-            for i in range(channel.data.shape[0]):
-                qt_color = utils.color_picker_QColor(
-                    length=channel.data.shape[0], index=i, color=color, alpha=alpha
-                )
-                channel_tmp.plot(
-                    time_array[i],
-                    channel.data[i],
-                    pen=pg.mkPen(
-                        color=qt_color,
-                        width=1,
-                    ),
-                )
-            if window != (0, 0):
-                for win_index, win_item in enumerate(window_items):
-                    if isinstance(window_items, list) and len(window_items) > 0:
-                        region = pg.LinearRegionItem(
-                            values=self.window[win_index], brush=(200, 200, 200, 50)
-                        )
-                    elif isinstance(window_items, tuple):
-                        region = pg.LinearRegionItem(
-                            values=self.window, brush=(200, 200, 200, 50)
-                        )
-                    else:
-                        continue
-                    win_item.append(region)
-                    region.sigRegionChanged.connect(
-                        make_region_callback(region, win_item, window_index=win_index)
-                        )
-                    region.setZValue(10 + win_index)
-                    channel_tmp.addItem(region)
-
-            if average:
-                channel.channel_average(sweep_subset=sweep_subset)
-                channel_tmp.plot(
-                    time_array[0, :],
-                    channel.average.trace,
-                    pen=pg.mkPen(color=avg_color, width=2),
-                    #             name=f"Ch{trace_select.channel_information.channel_number[channel_index]} Avg",
-                )
-
-        if return_fig:
-            return win
-        return None
+            plot_out = TracePlotMatplotlib(trace=self, **kwargs)
+            return plot_out.plot()
+        if backend == "pyqt":
+            plot_out = TracePlotPyQt(trace=self, **kwargs)
+            return plot_out.plot()
+        raise ValueError("Unsupported backend. Use 'matplotlib' or 'pyqt'.")
 
     def plot_summary(
         self,
