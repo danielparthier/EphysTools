@@ -3,16 +3,19 @@ This module provides utility functions for pattern matching in strings.
 It includes functions to check if elements in a list or numpy array match a
 given pattern.
 """
+
 from typing import Any
 from re import compile as compile_regex
 from matplotlib import colormaps
 from matplotlib.colors import is_color_like, to_rgb
 from pyqtgraph import mkColor
-from PySide6.QtGui import QColor
+from pyqtgraph.Qt.QtGui import QColor
 import numpy as np
 
 
-def color_picker(length: int, index: int, color: str = "black", alpha: float = 1.0) -> str | np.ndarray:
+def color_picker(
+    length: int, index: int, color: str = "black", alpha: float = 1.0
+) -> str | np.ndarray:
     """
     Selects a color from a colormap or validates a given color string.
 
@@ -28,6 +31,8 @@ def color_picker(length: int, index: int, color: str = "black", alpha: float = 1
     Notes:
     - Defaults to 'viridis' colormap if the color is invalid.
     """
+    if not 0 <= alpha <= 1:
+        raise ValueError("Alpha value must be between 0 and 1")
     if color in colormaps.keys():
         color_map = colormaps[color]
         color = color_map(np.linspace(0, 1, length), alpha)[index]
@@ -39,32 +44,29 @@ def color_picker(length: int, index: int, color: str = "black", alpha: float = 1
         color = color_map(np.linspace(0, 1, length), alpha)[index]
     return color
 
-def color_picker_QColor(
+
+def color_picker_qcolor(
     length: int, index: int, color: str = "black", alpha: float = 1.0
 ) -> QColor:
     """
-    Selects a color from a colormap or validates a given color string and returns it as a tuple.
-
-    Parameters:
-    length (int): Number of colors in the colormap.
-    index (int): Index of the color to select.
-    color (str): Name of the colormap or a color string. Defaults to 'black'.
-    alpha (float): Alpha value for the color. Defaults to 1.0.
-
+    Selects a color from a colormap or validates a given color string and returns
+    it as a QColor object.
+    Args:
+        length (int): Number of colors in the colormap.
+        index (int): Index of the color to select.
+        color (str): Name of the colormap or a color string. Defaults to 'black'.
+        alpha (float): Alpha value for the color. Defaults to 1.0.
     Returns:
-    QColor: The selected color as a QColor object.
-
-    Notes:
-    - Defaults to 'viridis' colormap if the color is invalid.
+        QColor: The selected color as a QColor object.
     """
-    selected_color = color_picker(length, index, color, alpha)
+    selected_color: str | np.ndarray = color_picker(length, index, color, alpha)
+    rgba_val: tuple = (0, 0, 0, 255)  # Default RGBA value
     if isinstance(selected_color, np.ndarray):
-        selected_color = tuple(int(c * 255) for c in selected_color)
+        rgba_val = tuple(int(c * 255) for c in selected_color)
     elif isinstance(selected_color, str):
-        selected_color = to_rgb(selected_color) + (alpha,)
-        selected_color = tuple(int(c * 255) for c in selected_color)
-    return mkColor(selected_color)
-       
+        rgba_val = tuple(int(c * 255) for c in to_rgb(selected_color) + (alpha,))
+    return mkColor(rgba_val)
+
 
 def trace_color(
     traces: np.ndarray, index: int, color: str = "black"
