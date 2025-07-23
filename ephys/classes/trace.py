@@ -25,6 +25,8 @@ from uuid import uuid4
 import numpy as np
 from quantities import Quantity
 import pyqtgraph as pg
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from ephys import utils
 from ephys.classes.class_functions import (
@@ -166,6 +168,7 @@ class Trace:
             pattern=rec_type, string_list=self.channel_information.recording_type
         )
         if clamp_type is None:
+            # By default, include both clamped (True) and unclamped (False) channels
             clamp_type = np.array([True, False])
         clamp_type_get = np.isin(self.channel_information.clamped, np.array(clamp_type))
         if channel_groups is None:
@@ -196,14 +199,15 @@ class Trace:
         )
 
         if len(combined_index) > 0:
-            signal_type = self.channel_information.signal_type[combined_index]
             subset_trace.channel_information.channel_number = (
                 self.channel_information.channel_number[combined_index]
             )
             subset_trace.channel_information.recording_type = (
                 self.channel_information.recording_type[combined_index]
             )
-            subset_trace.channel_information.signal_type = signal_type
+            subset_trace.channel_information.signal_type = (
+                self.channel_information.signal_type[combined_index]
+            )
             subset_trace.channel_information.clamped = self.channel_information.clamped[
                 combined_index
             ]
@@ -231,6 +235,7 @@ class Trace:
             subset_trace.channel_information.unit = np.array([])
         if subset_index_only:
             return subset_trace.channel_information
+        # sweep count starts at 1
         subset_trace.sweep_count = subset_trace.time.shape[0] + 1
         return subset_trace
 
@@ -410,10 +415,11 @@ class Trace:
             return None
         if index is None:
             return self.window
-        if self.window is not None and (index < 0 or index >= len(self.window)):
+        if self.window is not None and index >= len(self.window):
             raise IndexError("Index out of range for the window list.")
         if isinstance(self.window, list):
             return self.window[index]
+        return None
 
     def add_window(
         self,
@@ -428,7 +434,7 @@ class Trace:
         if isinstance(window, tuple):
             if self.window is None:
                 self.window = [window]
-            if isinstance(self.window, list):
+            elif isinstance(self.window, list):
                 self.window.append(window)
         elif isinstance(window, list):
             for win in window:
@@ -436,15 +442,15 @@ class Trace:
                     raise TypeError("Each window must be a tuple of length 2.")
             if self.window is None:
                 self.window = window
-            if isinstance(self.window, list):
+            elif isinstance(self.window, list):
                 self.window.extend(window)
         else:
             raise ValueError("Window must be a tuple or a list.")
 
     def remove_window(
         self,
-        index: int | None = None,
-        all: bool = False,
+        index: int = -1,
+        all_windows: bool = False,
     ) -> None:
         """
         Remove a window from the trace.
@@ -455,15 +461,16 @@ class Trace:
         """
         if self.window is None:
             return None
-        if index is None and not all:
+        if index == -1 and not all_windows:
             index = -1
-        if all:
+        if all_windows:
             self.window = None
         if isinstance(self.window, list):
             if index is not None and 0 <= index < len(self.window):
                 del self.window[index]
             else:
                 self.window.pop()
+        return None
 
     def window_function(
         self,
@@ -512,10 +519,11 @@ class Trace:
             window = [(0, 0)]
         if function not in ["mean", "median", "max", "min", "min_avg"]:
             print("Function not supported")
+            return None
         if not isinstance(window, list):
             window = [window]
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        subset_channels = self.subset(
+        subset_channels: Trace = self.subset(
             channels=channels,
             signal_type=signal_type,
             rec_type=rec_type,
@@ -538,14 +546,20 @@ class Trace:
                         channel_index
                     ],
                     label=label,
-                    unit=subset_channels.channel_information.unit[channel_index],
+                    # unit=subset_channels.channel_information.unit[channel_index],
                 )
         if plot:
-            subset_channels.plot(trace=subset_channels, show=True, window_data=output)
+            output.plot(trace=subset_channels, plot_trace=True)
         if return_output:
             return output
         self.window_summary.merge(window_summary=output)
         return None
+
+    def reset_window_summary(self) -> None:
+        """
+        Deletes the window summary.
+        """
+        self.window_summary = FunctionOutput()
 
     def average_trace(
         self,
@@ -554,7 +568,7 @@ class Trace:
         rec_type: Any = "",
         sweep_subset: Any = None,
         in_place: bool = True,
-    ) -> Any:
+    ) -> Any | None:
         """
         Calculates the average trace for the given channels, signal_type types, and recording type.
 
@@ -566,7 +580,14 @@ class Trace:
         - rec_type (Any): The recording type to calculate the average trace for.
 
         Returns:
-        - Any: The average trace object.
+        - None if in_place is True.
+        - Trace: The average trace object if in_place is False.
+
+        Note:
+        The return type depends on the value of `in_place`. If `in_place` is True,
+        the method modifies
+        the current object and returns None. If False, it returns a new Trace
+        object with the averaged data.
         """
 
         if channels is None:
@@ -594,7 +615,7 @@ class Trace:
 
     def plot(
         self, backend: str = "matplotlib", **kwargs
-    ) -> None | pg.GraphicsLayoutWidget | tuple:
+    ) -> None | pg.GraphicsLayoutWidget | tuple[Figure, Axes]:
         """
         Plots the traces using the specified backend.
 
@@ -605,6 +626,8 @@ class Trace:
         Returns:
             None or pg.GraphicsLayoutWidget: If using pyqtgraph, returns the plot widget.
         """
+        # Import here to avoid circular imports
+        # pylint: disable=import-outside-toplevel
         from ephys.classes.plot.plot_trace import TracePlotPyQt, TracePlotMatplotlib
 
         if backend == "matplotlib":
@@ -617,11 +640,10 @@ class Trace:
 
     def plot_summary(
         self,
-        show_trace: bool = True,
+        plot_trace: bool = True,
         align_onset: bool = True,
-        label_filter: list | str = "",
-        color="black",
-        show=True,
+        label_filter: list | str | None = None,
+        **kwargs: Any,
     ) -> None:
         """
         Plots a summary of the experiment data.
@@ -642,20 +664,15 @@ class Trace:
         None
         """
 
-        if label_filter == "":
+        if label_filter == "" or label_filter is None:
             label_filter = []
         if self.window_summary is not None:
-            if show_trace:
-                self.window_summary.plot(
-                    trace=self,
-                    align_onset=align_onset,
-                    show=show,
-                    label_filter=label_filter,
-                    color=color,
-                )
-            else:
-                self.window_summary.plot(
-                    align_onset=align_onset, show=show, label_filter=label_filter
-                )
+            self.window_summary.plot(
+                trace=self,
+                align_onset=align_onset,
+                label_filter=label_filter,
+                plot_trace=plot_trace,
+                **kwargs,
+            )
         else:
             print("No summary data found")
