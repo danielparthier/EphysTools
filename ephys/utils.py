@@ -4,13 +4,13 @@ It includes functions to check if elements in a list or numpy array match a
 given pattern.
 """
 
+import numpy as np
 from typing import Any
-from re import compile as compile_regex
+from re import compile as compile_regex, match
 from matplotlib import colormaps
 from matplotlib.colors import is_color_like, to_rgb
 from pyqtgraph import mkColor
 from pyqtgraph.Qt.QtGui import QColor
-import numpy as np
 
 
 def color_picker(
@@ -19,17 +19,17 @@ def color_picker(
     """
     Selects a color from a colormap or validates a given color string.
 
-    Parameters:
-    length (int): Number of colors in the colormap.
-    index (int): Index of the color to select.
-    color (str): Name of the colormap or a color string. Defaults to 'black'.
-    alpha (float): Alpha value for the color. Defaults to 1.0.
+    Args:
+        length (int): Number of colors in the colormap.
+        index (int): Index of the color to select.
+        color (str): Name of the colormap or a color string. Defaults to 'black'.
+        alpha (float): Alpha value for the color. Defaults to 1.0.
 
     Returns:
-    str | np.ndarray: The selected color.
+        str | np.ndarray: The selected color.
 
     Notes:
-    - Defaults to 'viridis' colormap if the color is invalid.
+        - Defaults to 'viridis' colormap if the color is invalid.
     """
     if not 0 <= alpha <= 1:
         raise ValueError("Alpha value must be between 0 and 1")
@@ -74,7 +74,7 @@ def trace_color(
     """
     Returns the color for a specific trace in a given colormap.
 
-    Parameters:
+    Args:
         traces (np.ndarray): The array of traces.
         index (int): The index of the trace.
         color (str): The name of the colormap or a specific color. Default is 'black'.
@@ -89,15 +89,15 @@ def string_match(pattern: Any, string_list: Any) -> np.ndarray:
     """
     Check if the given pattern matches any element in the input list.
 
-    Parameters:
-    pattern (str, list, or numpy array): The pattern to match against.
-    It can be a string, a list of strings, or a numpy array of strings.
-    input (str, list, or numpy array): The input list to check for matches.
-    It can be a string, a list of strings, or a numpy array of strings.
+    Args:
+        pattern (str, list, or numpy array): The pattern to match against.
+            It can be a string, a list of strings, or a numpy array of strings.
+        string_list (str, list, or numpy array): The input list to check for matches.
+            It can be a string, a list of strings, or a numpy array of strings.
 
     Returns:
-    np.ndarray: A boolean numpy array indicating whether each element in the
-    string_input list matches the pattern.
+        np.ndarray: A boolean numpy array indicating whether each element in the
+        string_list matches the pattern.
     """
 
     def single_match(pattern_string: str, input_string: str):
@@ -118,3 +118,44 @@ def string_match(pattern: Any, string_list: Any) -> np.ndarray:
         raise ValueError("Input list must be a str, list or numpy array of strings.")
     pattern_string = "|".join(pattern)
     return np.array([single_match(pattern_string, i) for i in string_list])
+
+
+def check_label_name(label_array: np.ndarray, label_name: str) -> str:
+    """
+    Checks if label_name exists in label_array and returns a unique label by
+    appending a numeric suffix if needed.
+
+    Args:
+        label_array (np.ndarray): Array of existing label names.
+        label_name (str): The label name to check for uniqueness.
+
+    Returns:
+        str: A unique label name.
+    """
+    if label_array.size == 0 or label_name not in label_array:
+        return label_name
+
+    regex_pattern = rf"^{label_name}_(\d+)$"
+    suffixes = [int(m.group(1)) for s in label_array if (m := match(regex_pattern, s))]
+    next_suffix = max(suffixes, default=0) + 1
+    return f"{label_name}_{next_suffix}"
+
+
+def unique_label_name(label_array: np.ndarray, label_name: np.ndarray) -> np.ndarray:
+    """
+    Returns a unique label based on label_name, appending a numeric suffix if needed.
+
+    Args:
+        label_array (np.ndarray): Array of existing label names.
+        label_name (np.ndarray): Array of label names to make unique.
+
+    Returns:
+        np.ndarray: Array of unique label names.
+    """
+    if isinstance(label_name, np.ndarray):
+        output_names = label_name.copy()
+        for name in np.unique(label_name):
+            if name in label_array:
+                output_names[output_names == name] = check_label_name(label_array, name)
+        return output_names
+    raise TypeError("label_name must be a string or numpy array of strings.")
