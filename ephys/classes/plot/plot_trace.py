@@ -358,7 +358,7 @@ class TracePlotPyQt(TracePlot):
 
         if len(self.params.xlim) > 2:
             raise ValueError("xlim must be a tuple of two values.")
-        if len(self.params.xlim) < 2:
+        if len(self.params.xlim) < 2 or self.params.xlim == (0, 0):
             self.params.xlim = (
                 np.min(time_array.magnitude),
                 np.max(time_array.magnitude),
@@ -426,7 +426,6 @@ class TracePlotPyQt(TracePlot):
                     channel.data[i],
                     pen=pg.mkPen(
                         color=qt_color,
-                        # width=1,
                     ),
                 )
             if windows_to_display != [(0, 0)]:

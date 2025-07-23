@@ -12,6 +12,8 @@ from typing import Any, TYPE_CHECKING
 import numpy as np
 import pandas as pd
 from quantities import Quantity
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from ephys import utils
 from ephys.classes.plot.plot_params import PlotParams
@@ -474,7 +476,7 @@ class FunctionOutput:
         label_filter: list | str | None = None,
         backend: str = "matplotlib",  # remove default after setting up pyqt
         **kwargs,
-    ) -> None:
+    ) -> None | tuple[Figure, Axes | np.ndarray] | None:
         """
         Plot the trace and/or summary measurements.
 
@@ -531,7 +533,7 @@ class FunctionOutput:
                 f"Unsupported backend: {backend}. Use 'matplotlib' or 'pyqt'."
             )
 
-        return plot_output.plot(
+        plot_output.plot(
             trace=trace,
             label_filter=label_filter,
         )
