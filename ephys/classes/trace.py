@@ -56,22 +56,28 @@ class Trace:
         copy() -> Any:
             Returns a deep copy of the Trace object.
 
-        subset(channels: Any = all channels, can be a list,
-               signal_type: Any = 'voltage' and 'current',
-               rec_type: Any = all rec_types) -> Any:
-            Returns a subset of the Trace object based on the specified channels, signal_type, and
-            rec_type.
+        subset(
+            channels: Any = all channels, can be a list,
+            signal_type: Any = 'voltage' and 'current',
+            rec_type: Any = all rec_types
+        ) -> Any:
+            Returns a subset of the Trace object based on the specified
+            channels, signal_type, and rec_type.
 
-        average_trace(channels: Any = all channels, can be a list,
-                      signal_type: Any = 'voltage' and 'current', can be a list,
-                      rec_type: Any = all rec_types) -> Any:
-            Returns the average trace of the Trace object based on the specified channels,
-            signal_type, and rec_type.
+        average_trace(
+            channels: Any = all channels, can be a list,
+            signal_type: Any = 'voltage' and 'current', can be a list,
+            rec_type: Any = all rec_types
+        ) -> Any:
+            Returns the average trace of the Trace object based on the
+            specified channels, signal_type, and rec_type.
 
-        plot(signal_type: str, channels: list, average: bool = False, color: str ='k',
-            alpha: float = 0.5, avg_color: str = 'r'):
-            Plots the trace data based on the specified signal_type, channels, and other optional
-            parameters.
+        plot(
+            signal_type: str, channels: list, average: bool = False,
+            color: str = 'k', alpha: float = 0.5, avg_color: str = 'r'
+        ):
+            Plots the trace data based on the specified signal_type,
+            channels, and other optional parameters.
     """
 
     def __init__(self, file_path: str = "", quick_check: bool = True) -> None:
@@ -127,21 +133,21 @@ class Trace:
 
         Args:
             channels (Any, optional): Channels to include in the subset.
-                Defaults to all channels.
-            signal_type (Any, optional): Types of signal_type to include in the subset.
-                Defaults to ['voltage', 'current'].
+            Defaults to all channels.
+            signal_type (Any, optional): Types of signal_type to include in the
+            subset. Defaults to ['voltage', 'current'].
             rec_type (Any, optional): Recording types to include in the subset.
-                Defaults to ''.
+            Defaults to ''.
             clamp_type (Any, optional): Clamp types to include in the subset.
-                Defaults to None.
-            channel_groups (Any, optional): Channel groups to include in the subset.
-                Defaults to None.
-            sweep_subset (Any, optional): Sweeps to include in the subset. Possible inputs can be
-                list, arrays or slice(). Defaults to None.
-            subset_index_only (bool, optional): If True, returns only the subset index.
-                Defaults to False.
+            Defaults to None.
+            channel_groups (Any, optional): Channel groups to include in the
+            subset. Defaults to None.
+            sweep_subset (Any, optional): Sweeps to include in the subset.
+            Possible inputs can be list, arrays or slice(). Defaults to None.
+            subset_index_only (bool, optional): If True, returns only the subset
+            index. Defaults to False.
             in_place (bool, optional): If True, modifies the object in place.
-                Defaults to False.
+            Defaults to False.
 
         Returns:
             Any: Subset of the experiment object.
@@ -249,14 +255,18 @@ class Trace:
         """
         Set the time axis for the given trace data.
 
-        Parameters:
-        - trace_data (Trace): The trace data object.
-        - align_to_zero (bool): If True, align the time axis to zero. Default is True.
-        - cumulative (bool): If True, set the time axis to cumulative. Default is False.
-        - stimulus_interval (float): The stimulus interval. Default is 0.0 (s).
+        Args:
+            align_to_zero (bool): If True, align the time axis to zero.
+            Default is True.
+            cumulative (bool): If True, set the time axis to cumulative.
+            Default is False.
+            stimulus_interval (float): The stimulus interval.
+            Default is 0.0 (s).
+            overwrite_time (bool): If True, overwrite the current time.
+            Default is True.
 
         Returns:
-        - Trace or None
+            Trace or None
         """
 
         tmp_time: Quantity = deepcopy(self.time)
@@ -293,16 +303,19 @@ class Trace:
 
     def rescale_time(self, time_unit: str = "s") -> None:
         """
-        Rescale the time axis for the given trace data.
+        Rescale the time axis of the trace to the specified time unit.
 
-        Parameters:
-        - trace_data (Trace): The trace data object.
-        - time_unit (str): The time unit. Default is 's'.
+        Args:
+            time_unit (str): The desired time unit to rescale the time axis to
+            (default is 's').
 
         Returns:
-        - None
-        """
+            None
 
+        Notes:
+            This method modifies the `time` attribute of the trace in-place by
+            converting it to the specified unit.
+        """
         self.time = self.time.rescale(units=time_unit)
 
     def subtract_baseline(
@@ -318,31 +331,24 @@ class Trace:
         """
         Subtracts the baseline from the signal within a specified time window.
 
-        Parameters:
-        self : object
-            The instance of the class containing the signal data.
-        window : tuple, optional
-            A tuple specifying the start and end of the time window for baseline
-            calculation (default is (0, 0.1)).
-        channels : Any, optional
-            The channels to be processed. If None, all channels are processed
-            (default is None).
-        signal_type : Any, optional
-            The type of signal to be processed (e.g., 'voltage' or 'current').
-            If None, all signal types are processed (default is None).
-        rec_type : str, optional
-            The type of recording (default is an empty string).
-        median : bool, optional
-            If True, the median value within the window is used as the baseline.
-            If False, the mean value is used (default is False).
-        overwrite : bool, optional
-            If True, the baseline-subtracted data will overwrite the original data.
-            If False, a copy of the data with the baseline subtracted will be
-            returned (default is False).
+        Args:
+            window (tuple, optional): A tuple specifying the start and end of the time window
+            for baseline calculation (default is (0, 0.1)).
+            channels (Any, optional): The channels to be processed. If None, all channels
+            are processed (default is None).
+            signal_type (Any, optional): The type of signal to be processed (e.g., 'voltage'
+            or 'current'). If None, all signal types are processed (default is None).
+            rec_type (str, optional): The type of recording (default is an empty string).
+            median (bool, optional): If True, the median value within the window is used as
+            the baseline. If False, the mean value is used (default is False).
+            overwrite (bool, optional): If True, the baseline-subtracted data will overwrite
+            the original data. If False, a copy of the data with the baseline subtracted
+            will be returned (default is False).
+            sweep_subset (Any, optional): Sweeps to include in the baseline subtraction.
+            Defaults to None.
 
         Returns:
-        Any
-            If overwrite is False, returns a copy of the data with the baseline
+            Any: If overwrite is False, returns a copy of the data with the baseline
             subtracted. If overwrite is True, returns None.
         """
 
@@ -404,8 +410,8 @@ class Trace:
         Get the current window of the trace.
 
         Args:
-            index (int, optional): The index of the window to retrieve. If None, returns the
-                entire window. Defaults to None.
+            index (int, optional): The index of the window to retrieve. If None,
+            returns the entire window. Defaults to None.
 
         Returns:
             tuple or list: The current window of the trace.
@@ -456,8 +462,8 @@ class Trace:
         Remove a window from the trace.
 
         Args:
-            index (int, optional): The index of the window to remove. If None, removes the last
-                window. Defaults to None.
+            index (int, optional): The index of the window to remove. If None,
+            removes the last window. Defaults to None.
         """
         if self.window is None:
             return None
@@ -487,32 +493,27 @@ class Trace:
         """
         Apply a specified function to a subset of channels within given time windows.
 
-        Parameters:
-        -----------
-        window : list, optional
-            List of tuples specifying the start and end of each window. Default is [(0, 0)].
-        channels : Any, optional
-            Channels to be included in the subset. Default is None.
-        signal_type : Any, optional
-            Type of signal to be included in the subset. Default is None.
-        rec_type : str, optional
-            Type of recording to be included in the subset. Default is an empty string.
-        function : str, optional
-            Function to apply to the data. Supported functions are 'mean', 'median', 'max',
-            'min', 'min_avg'. Default is 'mean'.
-        return_output : bool, optional
-            If True, the function returns the output. Default is False.
-        plot : bool, optional
-            If True, the function plots the output. Default is False.
+        Args:
+            window (list, optional): List of tuples specifying the start and end of each
+            window. Default is [(0, 0)].
+            channels (Any, optional): Channels to be included in the subset. Default is None.
+            signal_type (Any, optional): Type of signal to be included in the subset.
+            Default is None.
+            rec_type (str, optional): Type of recording to be included in the subset.
+            Default is an empty string.
+            function (str, optional): Function to apply to the data. Supported functions are
+            'mean', 'median', 'max', 'min', 'min_avg'. Default is 'mean'.
+            label (str, optional): Label for the output. Default is "".
+            sweep_subset (Any, optional): Sweeps to include. Default is None.
+            return_output (bool, optional): If True, the function returns the output.
+            Default is False.
+            plot (bool, optional): If True, the function plots the output. Default is False.
 
         Returns:
-        --------
-        Any
-            The output of the applied function if return_output is True, otherwise None.
+            Any: The output of the applied function if return_output is True, otherwise None.
 
         Notes:
-        ------
-        The function updates the `window_summary` attribute of the class with the output.
+            The function updates the `window_summary` attribute of the class with the output.
         """
 
         if window is None:
@@ -570,24 +571,29 @@ class Trace:
         in_place: bool = True,
     ) -> Any | None:
         """
-        Calculates the average trace for the given channels, signal_type types, and recording type.
+        Calculates the average trace for the given channels, signal_type types,
+        and recording type.
 
-        Parameters:
-        - channels (Any): The channels to calculate the average trace for.
-          If None, uses the first channel type.
-        - signal_type (Any): The signal_type types to calculate the average trace for.
-          Defaults to ['voltage', 'current'].
-        - rec_type (Any): The recording type to calculate the average trace for.
+        Args:
+            channels (Any, optional): Channels to include in the average.
+            Defaults to all channels.
+            signal_type (Any, optional): Signal types to include in the average.
+            Defaults to ['voltage', 'current'].
+            rec_type (Any, optional): Recording type to include in the average.
+            Defaults to "".
+            sweep_subset (Any, optional): Sweeps to include in the average.
+            Defaults to None.
+            in_place (bool, optional): If True, modifies the object in place.
+            If False, returns a new Trace object.
 
         Returns:
-        - None if in_place is True.
-        - Trace: The average trace object if in_place is False.
+            None if in_place is True.
+            Trace: The average trace object if in_place is False.
 
         Note:
-        The return type depends on the value of `in_place`. If `in_place` is True,
-        the method modifies
-        the current object and returns None. If False, it returns a new Trace
-        object with the averaged data.
+            The return type depends on the value of `in_place`. If `in_place` is True,
+            the method modifies the current object and returns None. If False, it returns
+            a new Trace object with the averaged data.
         """
 
         if channels is None:
@@ -646,22 +652,19 @@ class Trace:
         **kwargs: Any,
     ) -> None:
         """
-        Plots a summary of the experiment data.
+        Plot a summary of the experiment data.
 
-        Parameters:
-        -----------
-        show_trace : bool, optional
-            If True, includes the trace in the plot. Default is True.
-        align_onset : bool, optional
-            If True, aligns the plot on the onset. Default is True.
-        label_filter : list or str, optional
-            A filter to apply to the labels. Default is None.
-        color : str, optional
-            The color to use for the trace plot. Default is 'black'.
+        Args:
+            plot_trace (bool, optional): If True, include the trace in the plot.
+            Default is True.
+            align_onset (bool, optional): If True, align the plot on the onset.
+            Default is True.
+            label_filter (list or str, optional): Filter to apply to the labels.
+            Default is None.
+            **kwargs: Additional keyword arguments for the plotting function.
 
         Returns:
-        --------
-        None
+            None
         """
 
         if label_filter == "" or label_filter is None:
