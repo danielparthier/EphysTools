@@ -1,0 +1,15 @@
+dark_vars = {
+    "color": "#d4d4d4",
+    "background_color": "#1e1e1e",
+    "border_color": "#3c3c3c",
+    "border_radius": "4px",
+    "font_family": "'Segoe UI', 'Liberation Sans', Arial, sans-serif",
+    "font_size": "12pt",
+    "padding_big": "6px 12px",
+    "padding_small": "4px 8px",
+    "background_scrollbar": "#232323",
+    "background_scrollbar_handle": "#3c3c3c",
+    "background_button": "#2d2d2d",
+    "background_button_hover": "#37373d",
+    "background_button_pressed": "#094771",
+}

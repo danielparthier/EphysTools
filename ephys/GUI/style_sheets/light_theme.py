@@ -1,0 +1,15 @@
+light_vars = {
+    "color": "#222222",
+    "background_color": "#f3f3f3",
+    "border_color": "#cccccc",
+    "border_radius": "4px",
+    "font_family": "'Segoe UI', 'Liberation Sans', Arial, sans-serif",
+    "font_size": "12pt",
+    "padding_big": "6px 12px",
+    "padding_small": "4px 8px",
+    "background_scrollbar": "#f9f9f9",
+    "background_scrollbar_handle": "#cccccc",
+    "background_button": "#e6e6e6",
+    "background_button_hover": "#d0e7fa",
+    "background_button_pressed": "#b3d6f7",
+}
