@@ -59,6 +59,7 @@ class PlotParams:
             "window_mode", "add_to_trace"
         )  # Default mode for handling windows
         self.theme = kwargs.get("theme", "dark")
+        self.line_width = kwargs.get("line_width", 1.0)
         self.apply_theme(self.theme)
 
     def apply_theme(self, theme="dark") -> None:

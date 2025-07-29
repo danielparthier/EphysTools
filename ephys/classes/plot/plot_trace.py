@@ -426,6 +426,7 @@ class TracePlotPyQt(TracePlot):
                     channel.data[i],
                     pen=pg.mkPen(
                         color=qt_color,
+                        width=self.params.line_width,
                     ),
                 )
             if windows_to_display != [(0, 0)]:
