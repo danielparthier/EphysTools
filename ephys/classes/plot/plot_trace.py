@@ -402,13 +402,11 @@ class TracePlotPyQt(TracePlot):
             )
 
             if channel_index == len(trace_select.channel) - 1:
-                channel_tmp.setLabel("bottom", "Time (s)", color=self.params.axis_color)
-
-            channel_tmp.setLabel(
-                "bottom",
-                f"Time ({time_array.units.dimensionality.string})",
-                color=self.params.axis_color,
-            )
+                channel_tmp.setLabel(
+                    "bottom",
+                    f"Time ({time_array.units.dimensionality.string})",
+                    color=self.params.axis_color,
+                )
             channel_tmp.setDownsampling(mode="subsample", auto=True)
             channel_tmp.setClipToView(True)
             channel_box = channel_tmp.getViewBox()
