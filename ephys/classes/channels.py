@@ -7,6 +7,7 @@ Classes:
 - ChannelInformation: Extracts and stores channel information from electrophysiological data.
 - ChannelAverage: Calculates the average trace from a set of voltage or current traces.
 """
+
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from re import findall
@@ -219,6 +220,7 @@ class ChannelInformation:
                     channel_list.append(channel_index)
                     channel_unit.append(str(i["units"]))
             elif isinstance(data, IgorIO):
+                # TODO: Implement this for IgorIO
                 pass
             if len(channel_list) > 0:
                 self.channel_number = np.array(channel_list)
