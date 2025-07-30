@@ -249,7 +249,9 @@ class MetaData:
                 }
             )
 
-            print("Date of Experiment estimated. Please check for correct date.")
+            print(
+                f"Date of Experiment estimated. Please check for correct date: {estimated_exp_date}"
+            )
         if add:
             self.file_info = np.append(self.file_info, np.array(file_list))
             self.experiment_info = np.append(
