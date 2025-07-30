@@ -197,14 +197,12 @@ class ChannelInformation:
                         type_out.append("cell")
                         signal_type.append("current")
                     channel_groups.append(i["stream_id"].astype(int).tolist())
-                    print(len(analogsignals), channel_index)
                     if (
                         len(analogsignals) < channel_index
                         or analogsignals[0].shape[1] > 1
                     ):
                         # check if channels are merged in signal
                         if analogsignals[0].shape[1] > 1:
-                            print("hier")
                             clamp_type.append(
                                 _is_clamp(
                                     analogsignals[0][
