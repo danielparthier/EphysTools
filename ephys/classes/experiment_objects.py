@@ -53,7 +53,9 @@ def get_abf_exp_date(file_name):
             ms = struct.unpack("I", f.read(byte_size))[0]
             start_date_str = str(date_integer[0])
             rec_date = datetime(
-                int(start_date_str[:4]), int(start_date_str[4:6]), int(start_date_str[6:8])
+                int(start_date_str[:4]),
+                int(start_date_str[4:6]),
+                int(start_date_str[6:8]),
             )
             rec_date += timedelta(milliseconds=ms)
         else:
@@ -164,8 +166,13 @@ class MetaData:
         license_number: str = "unknown",
         subject_id: str = "unknown",
         species: str | list = ["mouse", "rat", "human"],
-        strain: str
-        | list = ["C57BL/6J", "C57BL/6JEi", "C57BL/6N", "129S1/SvImJ", "BALB/c"],
+        strain: str | list = [
+            "C57BL/6J",
+            "C57BL/6JEi",
+            "C57BL/6N",
+            "129S1/SvImJ",
+            "BALB/c",
+        ],
         genotype: str = "WT",
         date_of_birth: str = "YYYY-MM-DD",
         sex: str = "unknown",
@@ -248,7 +255,7 @@ class MetaData:
             self.experiment_info = np.append(
                 self.experiment_info, np.array(experiment_list)
             )
-            self.subject_list = np.append(self.subject_list, np.array(subject_list))
+            self.subject_info = np.append(self.subject_info, np.array(subject_list))
         else:
             self.file_info = np.array(file_list)
             self.experiment_info = np.array(experiment_list)
@@ -325,6 +332,24 @@ class ExpData:
         if sort:
             self.sort_by_date()
 
+    def add_file(
+        self, file_path: str | list, experimenter: str = "unknown", sort: bool = True
+    ) -> None:
+        """
+        Adds a file or files to the ExpData object.
+
+        Args:
+            file_path (str | list): The path(s) to the file(s) to be added.
+            experimenter (str, optional): The name of the experimenter. Defaults to 'unknown'.
+        """
+        if isinstance(file_path, str):
+            file_path = [file_path]
+        for file in file_path:
+            self.protocols.append(Trace(file))
+        self.meta_data.add_file_info(file_path, experimenter)
+        if sort:
+            self.sort_by_date()
+
     def sort_by_date(self):
         """
         Sorts the protocols by the date of the experiment.
@@ -366,6 +391,5 @@ class ExpData:
             return pd.DataFrame(summary_dict)
         return summary_dict
 
-    # TODO: function to add different protocols to the same experiment
     # TODO: get summary outputs for the experiment
     # TODO: get summary plots for the experiment
