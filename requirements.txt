@@ -1,11 +1,14 @@
 fastplotlib==0.5.1
 matplotlib==3.10.3
 neo==0.14.2
-numpy==2.3.1
+numpy==2.3.2
 pandas==2.3.1
 Pillow==11.3.0
-pynwb==3.1.0
+pynwb==3.1.1
 pyqtgraph==0.13.7
+PySide6==6.9.0
+PySide6_Addons==6.9.0
+PySide6_Essentials==6.9.0
 pytest==8.4.1
 quantities==0.16.2
-scipy==1.16.0
+scipy==1.16.1
