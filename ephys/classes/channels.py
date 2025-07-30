@@ -197,9 +197,29 @@ class ChannelInformation:
                         type_out.append("cell")
                         signal_type.append("current")
                     channel_groups.append(i["stream_id"].astype(int).tolist())
-                    clamp_type.append(
-                        _is_clamp(analogsignals[channel_index].magnitude.squeeze())
-                    )
+                    print(len(analogsignals), channel_index)
+                    if (
+                        len(analogsignals) < channel_index
+                        or analogsignals[0].shape[1] > 1
+                    ):
+                        # check if channels are merged in signal
+                        if analogsignals[0].shape[1] > 1:
+                            print("hier")
+                            clamp_type.append(
+                                _is_clamp(
+                                    analogsignals[0][
+                                        :, channel_index
+                                    ].magnitude.squeeze()
+                                )
+                            )
+                        else:
+                            # if so, we cannot find the channel in the data
+                            print(f"Channel {channel_index} not found in data.")
+                            continue
+                    else:
+                        clamp_type.append(
+                            _is_clamp(analogsignals[channel_index].magnitude.squeeze())
+                        )
                     channel_index += 1
                     channel_list.append(channel_index)
                     channel_unit.append(str(i["units"]))

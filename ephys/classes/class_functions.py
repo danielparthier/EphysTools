@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel
 """
 This module provides function to check and import ephys objects and generates metadata.
 """
@@ -63,9 +64,19 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
         else:
             raise ValueError("Signal type not recognized")
         for segment_index, segment in enumerate(data_block.segments):
-            trace_insert.insert_data(
-                segment.analogsignals[channel_index], segment_index
-            )
+            # handle channel mismatch (channels are loaded into the first channel with same label)
+            # TODO: check if it can be fixed on neo side or if it is only specific file scenarios
+            if (
+                len(segment.analogsignals) < channel_count
+                and segment.analogsignals[0].shape[1] > 1
+            ):
+                trace_insert.insert_data(
+                    segment.analogsignals[0][:, channel_index], segment_index
+                )
+            else:
+                trace_insert.insert_data(
+                    segment.analogsignals[channel_index], segment_index
+                )
             if channel_index == 0:
                 if segment_index == 0:
                     time_unit = segment.analogsignals[0].times.units
