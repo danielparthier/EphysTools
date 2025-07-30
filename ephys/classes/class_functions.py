@@ -1,6 +1,7 @@
 """
 This module provides function to check and import ephys objects and generates metadata.
 """
+
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from math import isclose
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from ephys.classes.experiment_objects import get_exp_date
     from ephys.classes.voltage import VoltageTrace
     from ephys.classes.current import CurrentTrace
-    from ephys.classes.channels import ChannelInformation, Channel
+    from ephys.classes.channels import Channel
 
 
 def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
@@ -207,9 +208,11 @@ def _is_clamp(trace: np.ndarray, window_len: int = 100, tol=1e-20) -> bool:
 
     if not isinstance(trace, np.ndarray):
         assert isinstance(trace, np.ndarray), "Invalid input. Must be a numpy array."
-    trace_median = np.median(sliding_window_view(trace, window_len), axis=1)
+    trace_median = np.median(sliding_window_view(trace, window_len, axis=0), axis=1)
     return isclose(
-        np.median(np.std(sliding_window_view(trace_median, window_len), axis=1)),
+        np.median(
+            np.std(sliding_window_view(trace_median, window_len, axis=0), axis=1)
+        ),
         0.0,
         abs_tol=tol,
     )
