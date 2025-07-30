@@ -12,23 +12,30 @@ def apply_style(theme: str) -> str:
         required_keys = [
             "background_color",
             "color",
-            "font_family",
-            "font_size",
             "background_button",
             "background_button_hover",
             "background_button_pressed",
             "border_color",
-            "border_radius",
-            "padding_small",
-            "padding_big",
             "background_scrollbar",
             "background_scrollbar_handle",
+            "border_color_hover",
+            "background_scrollbar",
+            "background_scrollbar_handle",
+            "background_scrollbar",
+            "arrow_color",
         ]
         for key in required_keys:
             if key not in theme_vars.keys():
                 raise KeyError(f"Missing key in theme_vars: {key}")
     else:
         raise TypeError("theme_vars must be a dictionary containing style variables.")
+
+    border_radius = "3px"
+    font_family = "'Segoe UI', 'Liberation Sans', Arial, sans-serif"
+    font_size = "10pt"
+    padding_big = "3px 8px"
+    padding_small = "2px 4px"
+    font_size_spinbox = "8pt"
 
     # Generate the style sheet using theme_vars
     theme_out: str = f"""
@@ -39,19 +46,19 @@ def apply_style(theme: str) -> str:
     QWidget {{
     background-color: {theme_vars['background_color']};
     color: {theme_vars['color']};
-    font-family: {theme_vars['font_family']};
-    font-size: {theme_vars['font_size']};
+    font-family: {font_family};
+    font-size: {font_size};
     }}
     QPushButton {{
     background-color: {theme_vars['background_button']};
     color: {theme_vars['color']};
     border: 1px solid {theme_vars['border_color']};
-    border-radius: {theme_vars['border_radius']};
-    padding: {theme_vars['padding_big']};
+    border-radius: {border_radius};
+    padding: {padding_big};
     }}
     QPushButton:hover {{
     background-color: {theme_vars['background_button_hover']};
-    border: 1px solid #007acc;
+    border: 1px solid {theme_vars['border_color_hover']};
     }}
     QPushButton:pressed {{
     background-color: {theme_vars['background_button_pressed']};
@@ -86,25 +93,25 @@ def apply_style(theme: str) -> str:
     }}
 
     QLineEdit {{
-    background-color: #ffffff;
+    background-color: {theme_vars['background_scrollbar']};
     color: {theme_vars['color']};
     border: 1px solid {theme_vars['border_color']};
-    border-radius: {theme_vars['border_radius']};
-    padding: {theme_vars['padding_small']};
+    border-radius: {border_radius};
+    padding: {padding_small};
     }}
     QLineEdit:focus {{
-    border: 1px solid #007acc;
+    border: 1px solid {theme_vars['background_button_pressed']};
     }}
 
     QComboBox {{
-    background-color: #ffffff;
+    background-color: {theme_vars['background_scrollbar']};
     color: {theme_vars['color']};
     border: 1px solid {theme_vars['border_color']};
-    border-radius: {theme_vars['border_radius']};
-    padding: {theme_vars['padding_small']};
+    border-radius: {border_radius};
+    padding: {padding_small};
     }}
     QComboBox QAbstractItemView {{
-    background-color: #ffffff;
+    background-color: {theme_vars['background_scrollbar']};
     color: {theme_vars['color']};
     selection-background-color: {theme_vars['background_button_pressed']};
     selection-color: {theme_vars['color']};
@@ -120,10 +127,10 @@ def apply_style(theme: str) -> str:
     }}
     QCheckBox::indicator:unchecked {{
     border: 1px solid {theme_vars['border_color']};
-    background: #ffffff;
+    background: {theme_vars['background_button']};
     }}
     QCheckBox::indicator:checked {{
-    border: 1px solid #007acc;
+    border: 1px solid {theme_vars['border_color']};
     background: {theme_vars['background_button_pressed']};
     }}
 
@@ -137,10 +144,10 @@ def apply_style(theme: str) -> str:
     }}
     QRadioButton::indicator:unchecked {{
     border: 1px solid {theme_vars['border_color']};
-    background: #ffffff;
+    background: {theme_vars['background_button']};
     }}
     QRadioButton::indicator:checked {{
-    border: 1px solid #007acc;
+    border: 1px solid {theme_vars['border_color']};
     background: {theme_vars['background_button_pressed']};
     }}
 
@@ -180,21 +187,31 @@ def apply_style(theme: str) -> str:
     background: {theme_vars['background_scrollbar']};
     }}
     QTabBar::tab {{
-    background: {theme_vars['background_button']};
+    background: {theme_vars['background_color']};
     color: {theme_vars['color']};
     border: 1px solid {theme_vars['border_color']};
     border-bottom: none;
-    padding: {theme_vars['padding_big']};
-    border-top-left-radius: {theme_vars['border_radius']};
-    border-top-right-radius: {theme_vars['border_radius']};
+    padding: {padding_big};
+    border-top-left-radius: {border_radius};
+    border-top-right-radius: {border_radius};
     }}
     QTabBar::tab:selected {{
-    background: #ffffff;
-    border-color: #007acc;
+    background: {theme_vars['background_button']};
+    border-color: {theme_vars['border_color']};
     color: {theme_vars['color']};
     }}
     QTabBar::tab:!selected {{
     margin-top: 2px;
+    }}
+    QTabBar::tab:hover {{
+    background: {theme_vars['background_button_hover']};
+    border: 1px solid {theme_vars['border_color_hover']};
+    }}
+    QTabBar::close-button:hover {{
+    background: {theme_vars['background_button_hover']};
+    }}
+    QTabBar::close-button:pressed {{
+    background: {theme_vars['background_button_pressed']};
     }}
 
     QMenuBar {{
@@ -238,7 +255,7 @@ def apply_style(theme: str) -> str:
     border-radius: 3px;
     }}
     QSlider::handle:horizontal {{
-    background: #007acc;
+    background: {theme_vars['background_scrollbar_handle']};
     border: 1px solid {theme_vars['border_color']};
     width: 14px;
     margin: -4px 0;
@@ -251,7 +268,7 @@ def apply_style(theme: str) -> str:
     border-radius: 3px;
     }}
     QSlider::handle:vertical {{
-    background: #007acc;
+    background: {theme_vars['background_scrollbar_handle']};
     border: 1px solid {theme_vars['border_color']};
     height: 14px;
     margin: 0 -4px;
@@ -261,17 +278,17 @@ def apply_style(theme: str) -> str:
     QProgressBar {{
     background-color: {theme_vars['background_scrollbar']};
     border: 1px solid {theme_vars['border_color']};
-    border-radius: {theme_vars['border_radius']};
+    border-radius: {border_radius};
     text-align: center;
     color: {theme_vars['color']};
     }}
     QProgressBar::chunk {{
     background-color: #007acc;
-    border-radius: {theme_vars['border_radius']};
+    border-radius: {border_radius};
     }}
 
     QTableView, QListView, QTreeView {{
-    background-color: #ffffff;
+    background-color: {theme_vars['background_scrollbar']};
     color: {theme_vars['color']};
     border: 1px solid {theme_vars['border_color']};
     selection-background-color: {theme_vars['background_button_pressed']};
@@ -284,5 +301,23 @@ def apply_style(theme: str) -> str:
     border: 1px solid {theme_vars['border_color']};
     padding: 4px;
     }}
+
+    QToolTip {{
+    background-color: {theme_vars['background_button']};
+    color: {theme_vars['color']};
+    border: 1px solid {theme_vars['border_color']};
+    border-radius: {border_radius};
+    padding: {padding_small};
+    font-family: {font_family};
+    font-size: {font_size};
+    }}
+
+    QSpinBox {{
+    font-size: {font_size_spinbox};
+    }}
+    QDoubleSpinBox {{
+    font-size: {font_size_spinbox};
+    }}
+
     """
     return theme_out
