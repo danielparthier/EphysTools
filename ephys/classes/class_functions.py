@@ -1,6 +1,7 @@
 """
 This module provides function to check and import ephys objects and generates metadata.
 """
+
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from math import isclose
@@ -11,9 +12,10 @@ import numpy as np
 
 if TYPE_CHECKING:
     from ephys.classes.trace import Trace
+    from ephys.classes.experiment_objects import get_exp_date
     from ephys.classes.voltage import VoltageTrace
     from ephys.classes.current import CurrentTrace
-    from ephys.classes.channels import ChannelInformation, Channel
+    from ephys.classes.channels import Channel
 
 
 def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
@@ -34,6 +36,7 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
     from ephys.classes.voltage import VoltageTrace, VoltageClamp
     from ephys.classes.current import CurrentTrace, CurrentClamp
     from ephys.classes.channels import ChannelInformation
+    from ephys.classes.experiment_objects import get_exp_date
 
     reader = WinWcpIO(file_path)
     data_block = reader.read_block()
@@ -74,6 +77,9 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
         trace_insert.starting_time = Quantity(trace.time[:, 0], time_unit)
+        trace_insert.rec_datetime = get_exp_date(
+            file_path
+        )  # change once updated on neo side
         trace.channel.append(trace_insert)
     if quick_check:
         print("Warning: Quick clamp check might not be accurate.")
@@ -136,6 +142,7 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
                 trace_insert = VoltageClamp(channel=trace_insert)
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
+        trace_insert.rec_datetime = data_block.rec_datetime
         trace.channel.append(trace_insert)
     if quick_check:
         print("Warning: Quick clamp check might not be accurate.")
@@ -201,9 +208,11 @@ def _is_clamp(trace: np.ndarray, window_len: int = 100, tol=1e-20) -> bool:
 
     if not isinstance(trace, np.ndarray):
         assert isinstance(trace, np.ndarray), "Invalid input. Must be a numpy array."
-    trace_median = np.median(sliding_window_view(trace, window_len), axis=1)
+    trace_median = np.median(sliding_window_view(trace, window_len, axis=0), axis=1)
     return isclose(
-        np.median(np.std(sliding_window_view(trace_median, window_len), axis=1)),
+        np.median(
+            np.std(sliding_window_view(trace_median, window_len, axis=0), axis=1)
+        ),
         0.0,
         abs_tol=tol,
     )

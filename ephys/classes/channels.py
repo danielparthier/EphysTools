@@ -7,9 +7,11 @@ Classes:
 - ChannelInformation: Extracts and stores channel information from electrophysiological data.
 - ChannelAverage: Calculates the average trace from a set of voltage or current traces.
 """
+
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from re import findall
+import datetime
 import numpy as np
 import pandas as pd
 from quantities import Quantity
@@ -67,6 +69,7 @@ class Channel:
         self.clamped: bool | None = None
         self.sampling_rate: Quantity = Quantity(0, "Hz")
         self.starting_time: Quantity = Quantity(np.zeros(self.sweep_count), "s")
+        self.rec_datetime: datetime.datetime | None = None
         self.check_clamp()
 
     def insert_data(self, data: np.ndarray, sweep_count: int) -> None:
@@ -190,7 +193,7 @@ class ChannelInformation:
                     elif len(findall(r"Vm", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("voltage")
-                    elif len(findall(r"Im", i[0])) == 1:
+                    elif len(findall(r"Im|Icom", i[0])) == 1:
                         type_out.append("cell")
                         signal_type.append("current")
                     channel_groups.append(i["stream_id"].astype(int).tolist())
@@ -217,6 +220,7 @@ class ChannelInformation:
                     channel_list.append(channel_index)
                     channel_unit.append(str(i["units"]))
             elif isinstance(data, IgorIO):
+                # TODO: Implement this for IgorIO
                 pass
             if len(channel_list) > 0:
                 self.channel_number = np.array(channel_list)

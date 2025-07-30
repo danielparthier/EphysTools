@@ -1,54 +1,70 @@
+"""
+This module defines the FunctionOutput class, which is used to handle the output of
+various functions applied to electrophysiological trace data. It includes methods for
+appending measurements, merging data, calculating differences and ratios, plotting
+results, and converting to dictionary or DataFrame formats.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, TYPE_CHECKING
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.axes import Axes
 from quantities import Quantity
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from ephys import utils
-from ephys.classes.class_functions import (
-    _get_time_index,
-    moving_average,
-)
+from ephys.classes.plot.plot_params import PlotParams
+from ephys.classes.class_functions import _get_time_index
 
 if TYPE_CHECKING:
     from ephys.classes.trace import Trace
 
 
 class FunctionOutput:
-    """A class to handle the output of various functions applied to electrophysiological trace data.
+    """
+    A class to handle the output of various functions applied to electrophysiological
+    trace data.
+
+    Args:
+        function_name (str): The name of the function to be applied to the trace data.
 
     Attributes:
         function_name (str): The name of the function to be applied to the trace data.
-        measurements (np.ndarray): An array to store the measurements obtained from the trace data.
-        location (np.ndarray): An array to store the locations corresponding to the measurements.
+        measurements (np.ndarray): An array to store the measurements obtained from the
+            trace data.
+        location (np.ndarray): An array to store the locations corresponding to the
+            measurements.
         sweep (np.ndarray): An array to store the sweep indices.
         channel (np.ndarray): An array to store the channel numbers.
-        signal_type (np.ndarray): An array to store the types of signals (e.g., current, voltage).
+        signal_type (np.ndarray): An array to store the types of signals (e.g., current,
+            voltage).
         window (np.ndarray): An array to store the time windows used for measurements.
         label (np.ndarray): An array to store the labels associated with the measurements.
-        time (np.ndarray): An array to store the time points corresponding to the measurements.
+        time (np.ndarray): An array to store the time points corresponding to the
+            measurements.
 
     Methods:
         __init__(self, function_name: str) -> None:
             Initializes the FunctionOutput object with the given function name.
 
-        append(self, trace: Trace, window: tuple, channels: Any = None, signal_type: Any = None,
-               rec_type: str = '', avg_window_ms: float = 1.0, label: str = '') -> None:
+        append(self, trace: Trace, window: tuple, channels: Any = None,
+               signal_type: Any = None, rec_type: str = '', avg_window_ms: float = 1.0,
+               label: str = '') -> None:
             Appends measurements and related information from the given trace data to the
             FunctionOutput object.
 
         merge(self, window_summary, remove_duplicates=False) -> None:
-            Merges the measurements, location, sweep, window, signal_type, and channel attributes
-            from the given window_summary object into the current object. Optionally removes
-            duplicates from these attributes after merging.
+            Merges the measurements, location, sweep, window, signal_type, and channel
+            attributes from the given window_summary object into the current object.
+            Optionally removes duplicates from these attributes after merging.
 
-        label_diff(self, labels: list = [], new_name: str = '', time_label: str = '') -> None:
-            Calculates the difference between two sets of measurements and appends the result.
+        label_diff(self, labels: list = [], new_name: str = '', time_label: str = '')
+            -> None:
+            Calculates the difference between two sets of measurements and appends the
+            result.
 
         plot(self, trace: Trace = None, show: bool = True, align_onset: bool = True,
              label_filter: list | str = [], color='black') -> None:
@@ -59,12 +75,15 @@ class FunctionOutput:
 
         to_dataframe(self) -> pd.DataFrame:
             Converts the experiment object to a pandas DataFrame.
+
         delete_label(self, label: str | list) -> None:
             Deletes a label from the measurements.
     """
 
     def __init__(self, function_name: str = "") -> None:
+        self.trace: Trace | None = None
         self.function_name = function_name
+        self.function = np.array([], dtype=str)
         self.measurements = np.array([])
         self.location = np.array([])
         self.sweep = np.array([])
@@ -73,7 +92,7 @@ class FunctionOutput:
         self.window = np.ndarray(dtype=object, shape=(0, 2))
         self.label = np.array([])
         self.time = np.array([])
-        self.unit = []
+        self.unit = np.array([])
 
     def append(
         self,
@@ -84,33 +103,27 @@ class FunctionOutput:
         rec_type: str = "",
         avg_window_ms: float = 1.0,
         label: str = "",
-        unit: str = "",
     ) -> None:
         """
         Appends measurements from a given trace within a specified time window.
 
-        Parameters:
-        -----------
-        trace : Trace
-            The trace object containing the data to be analyzed.
-        window : tuple
-            A tuple specifying the start and end times of the window for measurement.
-        channels : Any, optional
-            The channels to be included in the subset of the trace. Default is None.
-        signal_type : Any, optional
-            The type of signal to be included in the subset of the trace. Default is None.
-        rec_type : str, optional
-            The recording type to be included in the subset of the trace. Default is an
-            empty string.
-        avg_window_ms : float, optional
-            The averaging window size in milliseconds for the 'min_avg' function. Default
-            is 1.0 ms.
-        label : str, optional
-            A label to be associated with the measurements. Default is an empty string.
+        Args:
+            trace (Trace): The trace object containing the data to be analyzed.
+            window (tuple): A tuple specifying the start and end times of the window
+            for measurement.
+            channels (Any, optional): The channels to be included in the subset of the
+            trace. Default is None.
+            signal_type (Any, optional): The type of signal to be included in the
+            subset of the trace. Default is None.
+            rec_type (str, optional): The recording type to be included in the subset
+            of the trace. Default is an empty string.
+            avg_window_ms (float, optional): The averaging window size in milliseconds
+            for the 'min_avg' function. Default is 1.0 ms.
+            label (str, optional): A label to be associated with the measurements.
+            Default is an empty string.
 
         Returns:
-        --------
-        None
+            None
         """
         trace_subset = trace.subset(
             channels=channels, signal_type=signal_type, rec_type=rec_type
@@ -122,11 +135,11 @@ class FunctionOutput:
             stimulus_interval=0.0,
             overwrite_time=True,
         )
-        for channel_index, _ in enumerate(
+        self.trace = trace
+        for channel_index, channel in enumerate(
             trace_subset.channel_information.channel_number
         ):
             tmp_location = np.array([])
-            array_index = trace_subset.channel_information.array_index[channel_index]
             time_window_size = Quantity(avg_window_ms, "ms")
             channel_signal_type = trace_subset.channel_information.signal_type[
                 channel_index
@@ -158,7 +171,7 @@ class FunctionOutput:
                 ),
                 trace_subset.time.units,
             )
-            if channel_signal_type == "voltage" or channel_signal_type == "current":
+            if channel_signal_type in ["voltage", "current"]:
                 windowed_trace = np.array(
                     [
                         row[start:end]
@@ -169,29 +182,6 @@ class FunctionOutput:
                         )
                     ]
                 )
-
-            # if channel_signal_type == "current":
-            #     windowed_trace = np.array(
-            #         [
-            #             row[start:end]
-            #             for row, start, end in zip(
-            #                 trace_subset.current[array_index, :, :],
-            #                 window_start_index,
-            #                 window_end_index,
-            #             )
-            #         ]
-            #     )
-            # elif channel_signal_type == "voltage":
-            #     windowed_trace = np.array(
-            #         [
-            #             row[start:end]
-            #             for row, start, end in zip(
-            #                 trace_subset.voltage[array_index, :, :],
-            #                 window_start_index,
-            #                 window_end_index,
-            #             )
-            #         ]
-            #     )
             else:
                 print("Signal type not found")
                 return None
@@ -246,7 +236,7 @@ class FunctionOutput:
                     [
                         row[(start + window_index) : (end - window_index)]
                         for row, start, end in zip(
-                            trace_subset.voltage[array_index, :, :],
+                            trace_subset.channel[channel_index].data.magnitude,
                             window_start_index,
                             window_end_index,
                         )
@@ -308,6 +298,13 @@ class FunctionOutput:
                         ]
                     ).mean(axis=1),
                 )
+            if label == "":
+                # find the function_name in the self.function
+                label = self.function_name
+
+            self.function = np.append(
+                self.function, np.repeat(self.function_name, sweep_dim)
+            )
             self.location = np.append(self.location, tmp_location)
             self.sweep = np.append(self.sweep, np.arange(1, sweep_dim + 1))
             self.window = np.vstack((self.window, np.tile(window, (sweep_dim, 1))))
@@ -322,14 +319,15 @@ class FunctionOutput:
             self.channel = np.append(
                 self.channel,
                 np.repeat(
-                    trace_subset.channel_information.channel_number[channel_index],
+                    channel,
                     sweep_dim,
                 ),
             )
-            self.unit.append(
+            self.unit = np.append(
+                self.unit,
                 np.repeat(
                     trace_subset.channel_information.unit[channel_index], sweep_dim
-                )
+                ),
             )
 
             self.time = np.append(
@@ -349,15 +347,15 @@ class FunctionOutput:
 
     def merge(self, window_summary, remove_duplicates=False) -> None:
         """
-        Merges the measurements, location, sweep, window, signal_type, and channel attributes
-        from the given window_summary object into the current object. Optionally removes duplicates
-        from these attributes after merging.
+        Merges the measurements, location, sweep, window, signal_type, and channel
+        attributes from the given window_summary object into the current object.
+        Optionally removes duplicates from these attributes after merging.
 
         Args:
-            window_summary (object): An object containing measurements, location, sweep, window,
-                         signal_type, and channel attributes to be merged.
-            remove_duplicates (bool, optional): If True, removes duplicate entries from the merged
-                            attributes. Defaults to True.
+            window_summary (object): An object containing measurements, location,
+            sweep, window, signal_type, and channel attributes to be merged.
+            remove_duplicates (bool, optional): If True, removes duplicate entries
+            from the merged attributes. Defaults to True.
 
         Returns:
             None
@@ -369,8 +367,14 @@ class FunctionOutput:
         self.window = np.vstack((self.window, window_summary.window))
         self.signal_type = np.append(self.signal_type, window_summary.signal_type)
         self.channel = np.append(self.channel, window_summary.channel)
-        self.label = np.append(self.label, window_summary.label)
+        self.label = np.append(
+            self.label, utils.unique_label_name(self.label, window_summary.label)
+        )
+        self.function = np.append(self.function, window_summary.function)
+        self.unit = np.append(self.unit, window_summary.unit)
         self.time = np.append(self.time, window_summary.time)
+        self.trace = window_summary.trace
+
         if remove_duplicates:
             np.unique(self.measurements)
             self.measurements = np.unique(self.measurements)
@@ -380,6 +384,8 @@ class FunctionOutput:
             self.signal_type = np.unique(self.signal_type)
             self.channel = np.unique(self.channel)
             self.label = np.unique(self.label)
+            self.function = np.unique(self.function)
+            self.unit = np.unique(self.unit)
 
     def label_diff(
         self, labels: list | None = None, new_name: str = "", time_label: str = ""
@@ -387,13 +393,15 @@ class FunctionOutput:
         """
         Calculate the difference between two sets of measurements and append the result.
 
-        Parameters:
-        labels (list): Labels whose measurements will be used to calculate the difference.
-        new_name (str): Label name for the new set of measurements.
-        time_label (str): Label to identify the time points for the new measurements.
+        Args:
+            labels (list): Labels whose measurements will be used to calculate the
+            difference.
+            new_name (str): Label name for the new set of measurements.
+            time_label (str): Label to identify the time points for the new
+            measurements.
 
         Returns:
-        None
+            None
         """
 
         if labels is None:
@@ -406,6 +414,8 @@ class FunctionOutput:
         label_index_2 = np.where(self.label == labels[1])
         time_label_index = np.where(self.label == time_label)
         diff = self.measurements[label_index_1] - self.measurements[label_index_2]
+        self.function = np.append(self.function, np.repeat("diff", len(diff)))
+
         self.measurements = np.append(self.measurements, diff)
         self.location = np.append(self.location, self.location[time_label_index])
         self.sweep = np.append(self.sweep, self.sweep[time_label_index])
@@ -425,12 +435,15 @@ class FunctionOutput:
     ) -> None:
         """
         Calculate the ratio between two sets of measurements and append the result.
-        Parameters:
-        labels (list): Labels whose measurements will be used to calculate the ratio.
-        new_name (str): Label name for the new set of measurements.
-        time_label (str): Label to identify the time points for the new measurements.
+
+        Args:
+            labels (list): Labels whose measurements will be used to calculate the ratio.
+            new_name (str): Label name for the new set of measurements.
+            time_label (str): Label to identify the time points for the new
+            measurements.
+
         Returns:
-        None
+            None
         """
 
         if labels is None:
@@ -458,114 +471,83 @@ class FunctionOutput:
 
     def plot(
         self,
+        plot_trace: bool = True,
         trace: Trace | None = None,
-        show: bool = True,
-        align_onset: bool = True,
         label_filter: list | str | None = None,
-        color="black",
-    ) -> None:
+        backend: str = "matplotlib",  # remove default after setting up pyqt
+        **kwargs,
+    ) -> None | tuple[Figure, Axes | np.ndarray] | None:
         """
-        Plots the trace and/or summary measurements.
+        Plot the trace and/or summary measurements.
 
-        Parameters:
-        trace (Trace, optional): The trace object to be plotted. If None, only the summary
-                                 measurements are plotted. Default is None.
-        show (bool, optional): If True, the plot will be displayed. Default is True.
-        summary_only (bool, optional): If True, only the summary measurements will be
-                                      plotted. Default is True.
+        Args:
+            plot_trace (bool, optional): If True, plot the trace data.
+            Default is True.
+            trace (Trace or None, optional): The trace object to be plotted.
+            If None, uses the trace stored in the FunctionOutput object.
+            label_filter (list, str, or None, optional): Labels to filter the
+            measurements for plotting.
+            backend (str, optional): The plotting backend to use
+            ('matplotlib' or 'pyqt'). Default is 'matplotlib'.
+            **kwargs: Additional keyword arguments for plotting.
 
         Returns:
-        None
-        """
-        if self.measurements.size == 0:
-            print("No measurements to plot")
-            return None
-        if label_filter is None:
-            label_filter = []
-        _, channel_axs = None, None
-        if trace is not None:
-            # self.channel = np.unique(np.array(self.channel))
-            trace_select = trace.subset(
-                channels=self.channel, signal_type=self.signal_type
-            )
-            #            trace_select.plot(show=False, align_onset=align_onset, color=color)
-            _, channel_axs = trace_select.plot(
-                show=False, align_onset=align_onset, color=color, return_fig=True
-            )
-        else:
-            _, channel_axs = plt.subplots(np.unique(self.channel).size, 1, sharex=True)
-        channel_count = np.unique(self.channel).size
-        unique_labels = np.unique(self.label)
-        if align_onset:
-            x_axis = self.location
-        else:
-            x_axis = self.time
-        for color_index, label in enumerate(unique_labels):
-            # add section to plot on channel by channel basis
-            for channel_index, channel_number in enumerate(np.unique(self.channel)):
-                tmp_axs: Axes | None = None
-                if channel_count > 1:
-                    if isinstance(channel_axs, np.ndarray):
-                        tmp_axs = channel_axs[channel_index]
-                else:
-                    if isinstance(channel_axs, Axes):
-                        tmp_axs = channel_axs
-                if len(label_filter) > 0:
-                    if label not in label_filter:
-                        continue
-                label_idx = np.where(
-                    (self.label == label) & (self.channel == channel_number)
-                )
-                label_colors = utils.color_picker(
-                    length=len(unique_labels), index=color_index, color="gist_rainbow"
-                )
-                if not align_onset:
-                    y_smooth = moving_average(
-                        self.measurements[label_idx], len(label_idx[0]) // 10
-                    )
-                    if tmp_axs is not None:
-                        tmp_axs.plot(
-                            x_axis[label_idx],
-                            y_smooth,
-                            color=label_colors,
-                            alpha=0.4,
-                            lw=2,
-                        )
-                if tmp_axs is not None:
-                    tmp_axs.plot(
-                        x_axis[label_idx],
-                        self.measurements[label_idx],
-                        "o",
-                        color=label_colors,
-                        alpha=0.5,
-                        label=label,
-                    )
-        # TODO: add y and x labels to the plot when no trace is provided.
-        if (unique_labels.size != 1) and (unique_labels[0] != ""):
-            if isinstance(channel_axs, np.ndarray):
-                channel_axs[0].legend(loc="best")
-            else:
-                if isinstance(channel_axs, Axes):
-                    channel_axs.legend(loc="best")
+            FunctionOutputPyQt or FunctionOutputMatplotlib: The plot output object.
 
-        if show:
-            plt.show()
+        Raises:
+            ValueError: If an unsupported backend is specified.
+            TypeError: If the trace is not an instance of Trace when plot_trace is True.
+        """
+
+        # pylint:disable=import-outside-toplevel
+        from ephys.classes.trace import Trace
+
+        plot_params = PlotParams()
+        plot_params.update_params(**kwargs)
+        if plot_trace:
+            if trace is not None:
+                if trace is None:
+                    trace = self.trace
+                if not isinstance(trace, Trace):
+                    raise TypeError("trace must be an instance of Trace.")
+        else:
+            trace = None
+        if backend == "matplotlib":
+            # pylint:disable=import-outside-toplevel
+            from ephys.classes.plot.plot_window_functions import (
+                FunctionOutputMatplotlib,
+            )
+
+            plot_output = FunctionOutputMatplotlib(
+                function_output=self, **plot_params.__dict__
+            )
+        elif backend == "pyqt":
+            # pylint:disable=import-outside-toplevel
+            from ephys.classes.plot.plot_window_functions import FunctionOutputPyQt
+
+            plot_output = FunctionOutputPyQt(
+                function_output=self, **plot_params.__dict__
+            )
+        else:
+            raise ValueError(
+                f"Unsupported backend: {backend}. Use 'matplotlib' or 'pyqt'."
+            )
+
+        plot_output.plot(
+            trace=trace,
+            label_filter=label_filter,
+        )
 
     def to_dict(self):
         """
-        Convert the experiment object to a dictionary representation.
+        Convert the FunctionOutput object to a dictionary representation.
 
         Returns:
-            dict: A dictionary containing the following keys:
-                - 'measurements': The measurements associated with the experiment.
-                - 'location': The location of the experiment.
-                - 'sweep': The sweep information of the experiment.
-                - 'window': The window information of the experiment.
-                - 'signal_type': The type of signal used in the experiment.
-                - 'channel': The channel information of the experiment.
+            dict: A dictionary containing the function output attributes.
         """
 
         return {
+            "function": self.function,
             "measurements": self.measurements,
             "location": self.location,
             "sweep": self.sweep,
@@ -573,16 +555,16 @@ class FunctionOutput:
             "signal_type": self.signal_type,
             "channel": self.channel,
             "label": self.label,
+            "unit": self.unit,
             "time": self.time,
         }
 
     def to_dataframe(self):
         """
-        Convert the experiment object to a pandas DataFrame.
+        Convert the FunctionOutput object to a pandas DataFrame.
 
         Returns:
-            pandas.DataFrame: A DataFrame containing the measurements, location,
-            sweep, window, signal_type, and channel information.
+            pandas.DataFrame: A DataFrame containing the function output attributes.
         """
 
         tmp_dictionary = self.to_dict()
@@ -590,7 +572,7 @@ class FunctionOutput:
         tmp_dictionary["window"] = window_tmp
         return pd.DataFrame(tmp_dictionary)
 
-    def delete_label(self, label: str | list) -> None:
+    def delete_label(self, label: str | list | None = None) -> None:
         """
         Delete a label from the measurements.
 
@@ -600,10 +582,23 @@ class FunctionOutput:
         Returns:
         None
         """
+        if label is None:
+            self.function = np.array([], dtype=str)
+            self.measurements = np.array([])
+            self.location = np.array([])
+            self.sweep = np.array([])
+            self.channel = np.array([])
+            self.signal_type = np.array([])
+            self.window = np.ndarray(dtype=object, shape=(0, 2))
+            self.label = np.array([])
+            self.time = np.array([])
+            self.unit = np.array([])
+            return None
         if isinstance(label, str):
             label = [label]
         for label_i in label:
             label_index = np.where(self.label == label_i)
+            self.function = np.delete(self.function, label_index)
             self.measurements = np.delete(self.measurements, label_index)
             self.location = np.delete(self.location, label_index)
             self.sweep = np.delete(self.sweep, label_index)
@@ -612,3 +607,5 @@ class FunctionOutput:
             self.channel = np.delete(self.channel, label_index)
             self.label = np.delete(self.label, label_index)
             self.time = np.delete(self.time, label_index)
+            self.unit = np.delete(self.unit, label_index)
+        return None

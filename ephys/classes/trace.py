@@ -17,12 +17,16 @@ Dependencies:
     - ephys.classes.class_functions
 """
 
-from typing import Any
+from __future__ import annotations
+from typing import Any, Optional, TYPE_CHECKING
 from copy import deepcopy
+from datetime import datetime
+from uuid import uuid4
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 from quantities import Quantity
+import pyqtgraph as pg
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from ephys import utils
 from ephys.classes.class_functions import (
@@ -33,6 +37,9 @@ from ephys.classes.class_functions import (
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
 from ephys.classes.window_functions import FunctionOutput
+
+if TYPE_CHECKING:
+    from ephys.classes.plot.plot_trace import TracePlotPyQt, TracePlotMatplotlib
 
 
 class Trace:
@@ -49,38 +56,60 @@ class Trace:
         copy() -> Any:
             Returns a deep copy of the Trace object.
 
-        subset(channels: Any = all channels, can be a list,
-               signal_type: Any = 'voltage' and 'current',
-               rec_type: Any = all rec_types) -> Any:
-            Returns a subset of the Trace object based on the specified channels, signal_type, and
-            rec_type.
+        subset(
+            channels: Any = all channels, can be a list,
+            signal_type: Any = 'voltage' and 'current',
+            rec_type: Any = all rec_types
+        ) -> Any:
+            Returns a subset of the Trace object based on the specified
+            channels, signal_type, and rec_type.
 
-        average_trace(channels: Any = all channels, can be a list,
-                      signal_type: Any = 'voltage' and 'current', can be a list,
-                      rec_type: Any = all rec_types) -> Any:
-            Returns the average trace of the Trace object based on the specified channels,
-            signal_type, and rec_type.
+        average_trace(
+            channels: Any = all channels, can be a list,
+            signal_type: Any = 'voltage' and 'current', can be a list,
+            rec_type: Any = all rec_types
+        ) -> Any:
+            Returns the average trace of the Trace object based on the
+            specified channels, signal_type, and rec_type.
 
-        plot(signal_type: str, channels: list, average: bool = False, color: str ='k',
-            alpha: float = 0.5, avg_color: str = 'r'):
-            Plots the trace data based on the specified signal_type, channels, and other optional
-            parameters.
+        plot(
+            signal_type: str, channels: list, average: bool = False,
+            color: str = 'k', alpha: float = 0.5, avg_color: str = 'r'
+        ):
+            Plots the trace data based on the specified signal_type,
+            channels, and other optional parameters.
     """
 
-    def __init__(self, file_path: str, quick_check: bool = True) -> None:
-        self.file_path = file_path
-        self.time = Quantity(np.array([]), units="s")
-        self.sampling_rate = None
-        self.channel = np.array([])
-        self.channel_information = ChannelInformation()
-        self.sweep_count = None
-        self.window_summary = FunctionOutput()
+    def __init__(self, file_path: str = "", quick_check: bool = True) -> None:
+        self.file_path: str = file_path
+        self.time: Quantity = Quantity(np.array([]), units="s")
+        self.sampling_rate: Quantity | None = None
+        self.rec_datetime: Optional[datetime] = None
+        self.channel: np.ndarray = np.array([])
+        self.channel_information: ChannelInformation = ChannelInformation()
+        self.sweep_count: int | None = None
+        self.object_id: str = str(uuid4())
+        self.window_summary: FunctionOutput = FunctionOutput()
+        self.window: None | list = None
+        if self.file_path and len(self.file_path) > 0:
+            self.load(file_path=self.file_path, quick_check=quick_check)
+
+    def load(self, file_path: str, quick_check: bool = True) -> None:
+        """
+        Load the trace data from a file.
+
+        Args:
+            file_path (str): The path to the file to load.
+            quick_check (bool, optional): If True, performs a quick check of the file.
+        """
         if file_path.endswith(".wcp"):
-            wcp_trace(self, file_path, quick_check)
+            wcp_trace(trace=self, file_path=file_path, quick_check=quick_check)
         elif file_path.endswith(".abf"):
-            abf_trace(self, file_path, quick_check)
+            abf_trace(trace=self, file_path=file_path, quick_check=quick_check)
         else:
             print("File type not supported")
+        if self.sampling_rate is not None:
+            self.rec_datetime = self.channel[0].rec_datetime
 
     def copy(self) -> Any:
         """
@@ -104,21 +133,21 @@ class Trace:
 
         Args:
             channels (Any, optional): Channels to include in the subset.
-                Defaults to all channels.
-            signal_type (Any, optional): Types of signal_type to include in the subset.
-                Defaults to ['voltage', 'current'].
+            Defaults to all channels.
+            signal_type (Any, optional): Types of signal_type to include in the
+            subset. Defaults to ['voltage', 'current'].
             rec_type (Any, optional): Recording types to include in the subset.
-                Defaults to ''.
+            Defaults to ''.
             clamp_type (Any, optional): Clamp types to include in the subset.
-                Defaults to None.
-            channel_groups (Any, optional): Channel groups to include in the subset.
-                Defaults to None.
-            sweep_subset (Any, optional): Sweeps to include in the subset. Possible inputs can be
-                list, arrays or slice(). Defaults to None.
-            subset_index_only (bool, optional): If True, returns only the subset index.
-                Defaults to False.
+            Defaults to None.
+            channel_groups (Any, optional): Channel groups to include in the
+            subset. Defaults to None.
+            sweep_subset (Any, optional): Sweeps to include in the subset.
+            Possible inputs can be list, arrays or slice(). Defaults to None.
+            subset_index_only (bool, optional): If True, returns only the subset
+            index. Defaults to False.
             in_place (bool, optional): If True, modifies the object in place.
-                Defaults to False.
+            Defaults to False.
 
         Returns:
             Any: Subset of the experiment object.
@@ -136,15 +165,16 @@ class Trace:
                 return self.channel_information
             return self
 
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        sweep_subset = _get_sweep_subset(array=self.time, sweep_subset=sweep_subset)
         if in_place:
             subset_trace = self
         else:
             subset_trace = self.copy()
-        rec_type_get = utils.string_match(
-            rec_type, self.channel_information.recording_type
+        rec_type_get: np.ndarray = utils.string_match(
+            pattern=rec_type, string_list=self.channel_information.recording_type
         )
         if clamp_type is None:
+            # By default, include both clamped (True) and unclamped (False) channels
             clamp_type = np.array([True, False])
         clamp_type_get = np.isin(self.channel_information.clamped, np.array(clamp_type))
         if channel_groups is None:
@@ -175,14 +205,15 @@ class Trace:
         )
 
         if len(combined_index) > 0:
-            signal_type = self.channel_information.signal_type[combined_index]
             subset_trace.channel_information.channel_number = (
                 self.channel_information.channel_number[combined_index]
             )
             subset_trace.channel_information.recording_type = (
                 self.channel_information.recording_type[combined_index]
             )
-            subset_trace.channel_information.signal_type = signal_type
+            subset_trace.channel_information.signal_type = (
+                self.channel_information.signal_type[combined_index]
+            )
             subset_trace.channel_information.clamped = self.channel_information.clamped[
                 combined_index
             ]
@@ -210,6 +241,7 @@ class Trace:
             subset_trace.channel_information.unit = np.array([])
         if subset_index_only:
             return subset_trace.channel_information
+        # sweep count starts at 1
         subset_trace.sweep_count = subset_trace.time.shape[0] + 1
         return subset_trace
 
@@ -223,19 +255,23 @@ class Trace:
         """
         Set the time axis for the given trace data.
 
-        Parameters:
-        - trace_data (Trace): The trace data object.
-        - align_to_zero (bool): If True, align the time axis to zero. Default is True.
-        - cumulative (bool): If True, set the time axis to cumulative. Default is False.
-        - stimulus_interval (float): The stimulus interval. Default is 0.0 (s).
+        Args:
+            align_to_zero (bool): If True, align the time axis to zero.
+            Default is True.
+            cumulative (bool): If True, set the time axis to cumulative.
+            Default is False.
+            stimulus_interval (float): The stimulus interval.
+            Default is 0.0 (s).
+            overwrite_time (bool): If True, overwrite the current time.
+            Default is True.
 
         Returns:
-        - Trace or None
+            Trace or None
         """
 
-        tmp_time = deepcopy(self.time)
-        time_unit = tmp_time.units
-        start_time = Quantity(0, time_unit)
+        tmp_time: Quantity = deepcopy(self.time)
+        time_unit: Quantity = tmp_time.units
+        start_time = Quantity(data=0, units=time_unit)
         if self.sampling_rate is None:
             raise ValueError(
                 "Sampling rate is not set."
@@ -244,20 +280,20 @@ class Trace:
         sampling_interval = (1 / self.sampling_rate).rescale(time_unit).magnitude
 
         for sweep_index, sweep in enumerate(tmp_time):
-            sweep = Quantity(sweep, time_unit)
+            sweep = Quantity(data=sweep, units=time_unit)
             if align_to_zero:
-                start_time = Quantity(np.min(sweep.magnitude), time_unit)
+                start_time = Quantity(data=np.min(sweep.magnitude), units=time_unit)
             if cumulative:
                 if sweep_index > 0:
                     start_time = Quantity(
-                        Quantity(
-                            np.min(sweep.magnitude)
+                        data=Quantity(
+                            data=np.min(sweep.magnitude)
                             - np.max(tmp_time[sweep_index - 1].magnitude),
-                            time_unit,
+                            units=time_unit,
                         ).magnitude
                         - stimulus_interval
                         - sampling_interval,
-                        time_unit,
+                        units=time_unit,
                     )
             tmp_time[sweep_index] -= start_time
         if overwrite_time:
@@ -267,17 +303,20 @@ class Trace:
 
     def rescale_time(self, time_unit: str = "s") -> None:
         """
-        Rescale the time axis for the given trace data.
+        Rescale the time axis of the trace to the specified time unit.
 
-        Parameters:
-        - trace_data (Trace): The trace data object.
-        - time_unit (str): The time unit. Default is 's'.
+        Args:
+            time_unit (str): The desired time unit to rescale the time axis to
+            (default is 's').
 
         Returns:
-        - None
-        """
+            None
 
-        self.time = self.time.rescale(time_unit)
+        Notes:
+            This method modifies the `time` attribute of the trace in-place by
+            converting it to the specified unit.
+        """
+        self.time = self.time.rescale(units=time_unit)
 
     def subtract_baseline(
         self,
@@ -292,31 +331,24 @@ class Trace:
         """
         Subtracts the baseline from the signal within a specified time window.
 
-        Parameters:
-        self : object
-            The instance of the class containing the signal data.
-        window : tuple, optional
-            A tuple specifying the start and end of the time window for baseline
-            calculation (default is (0, 0.1)).
-        channels : Any, optional
-            The channels to be processed. If None, all channels are processed
-            (default is None).
-        signal_type : Any, optional
-            The type of signal to be processed (e.g., 'voltage' or 'current').
-            If None, all signal types are processed (default is None).
-        rec_type : str, optional
-            The type of recording (default is an empty string).
-        median : bool, optional
-            If True, the median value within the window is used as the baseline.
-            If False, the mean value is used (default is False).
-        overwrite : bool, optional
-            If True, the baseline-subtracted data will overwrite the original data.
-            If False, a copy of the data with the baseline subtracted will be
-            returned (default is False).
+        Args:
+            window (tuple, optional): A tuple specifying the start and end of the time window
+            for baseline calculation (default is (0, 0.1)).
+            channels (Any, optional): The channels to be processed. If None, all channels
+            are processed (default is None).
+            signal_type (Any, optional): The type of signal to be processed (e.g., 'voltage'
+            or 'current'). If None, all signal types are processed (default is None).
+            rec_type (str, optional): The type of recording (default is an empty string).
+            median (bool, optional): If True, the median value within the window is used as
+            the baseline. If False, the mean value is used (default is False).
+            overwrite (bool, optional): If True, the baseline-subtracted data will overwrite
+            the original data. If False, a copy of the data with the baseline subtracted
+            will be returned (default is False).
+            sweep_subset (Any, optional): Sweeps to include in the baseline subtraction.
+            Defaults to None.
 
         Returns:
-        Any
-            If overwrite is False, returns a copy of the data with the baseline
+            Any: If overwrite is False, returns a copy of the data with the baseline
             subtracted. If overwrite is True, returns None.
         """
 
@@ -370,6 +402,82 @@ class Trace:
             return trace_copy
         return None
 
+    def get_window(
+        self,
+        index: int | None = None,
+    ) -> tuple | list | None:
+        """
+        Get the current window of the trace.
+
+        Args:
+            index (int, optional): The index of the window to retrieve. If None,
+            returns the entire window. Defaults to None.
+
+        Returns:
+            tuple or list: The current window of the trace.
+        """
+        if self.window is None:
+            print("No window set for the trace.")
+            return None
+        if index is None:
+            return self.window
+        if self.window is not None and index >= len(self.window):
+            raise IndexError("Index out of range for the window list.")
+        if isinstance(self.window, list):
+            return self.window[index]
+        return None
+
+    def add_window(
+        self,
+        window: tuple | list,
+    ) -> None:
+        """
+        Add a window for the trace.
+
+        Args:
+            window (tuple or list): The window to set for the trace.
+        """
+        if isinstance(window, tuple):
+            if self.window is None:
+                self.window = [window]
+            elif isinstance(self.window, list):
+                self.window.append(window)
+        elif isinstance(window, list):
+            for win in window:
+                if not isinstance(win, tuple) or len(win) != 2:
+                    raise TypeError("Each window must be a tuple of length 2.")
+            if self.window is None:
+                self.window = window
+            elif isinstance(self.window, list):
+                self.window.extend(window)
+        else:
+            raise ValueError("Window must be a tuple or a list.")
+
+    def remove_window(
+        self,
+        index: int = -1,
+        all_windows: bool = False,
+    ) -> None:
+        """
+        Remove a window from the trace.
+
+        Args:
+            index (int, optional): The index of the window to remove. If None,
+            removes the last window. Defaults to None.
+        """
+        if self.window is None:
+            return None
+        if index == -1 and not all_windows:
+            index = -1
+        if all_windows:
+            self.window = None
+        if isinstance(self.window, list):
+            if index is not None and 0 <= index < len(self.window):
+                del self.window[index]
+            else:
+                self.window.pop()
+        return None
+
     def window_function(
         self,
         window: list | None = None,
@@ -385,42 +493,38 @@ class Trace:
         """
         Apply a specified function to a subset of channels within given time windows.
 
-        Parameters:
-        -----------
-        window : list, optional
-            List of tuples specifying the start and end of each window. Default is [(0, 0)].
-        channels : Any, optional
-            Channels to be included in the subset. Default is None.
-        signal_type : Any, optional
-            Type of signal to be included in the subset. Default is None.
-        rec_type : str, optional
-            Type of recording to be included in the subset. Default is an empty string.
-        function : str, optional
-            Function to apply to the data. Supported functions are 'mean', 'median', 'max',
-            'min', 'min_avg'. Default is 'mean'.
-        return_output : bool, optional
-            If True, the function returns the output. Default is False.
-        plot : bool, optional
-            If True, the function plots the output. Default is False.
+        Args:
+            window (list, optional): List of tuples specifying the start and end of each
+            window. Default is [(0, 0)].
+            channels (Any, optional): Channels to be included in the subset. Default is None.
+            signal_type (Any, optional): Type of signal to be included in the subset.
+            Default is None.
+            rec_type (str, optional): Type of recording to be included in the subset.
+            Default is an empty string.
+            function (str, optional): Function to apply to the data. Supported functions are
+            'mean', 'median', 'max', 'min', 'min_avg'. Default is 'mean'.
+            label (str, optional): Label for the output. Default is "".
+            sweep_subset (Any, optional): Sweeps to include. Default is None.
+            return_output (bool, optional): If True, the function returns the output.
+            Default is False.
+            plot (bool, optional): If True, the function plots the output. Default is False.
 
         Returns:
-        --------
-        Any
-            The output of the applied function if return_output is True, otherwise None.
+            Any: The output of the applied function if return_output is True, otherwise None.
 
         Notes:
-        ------
-        The function updates the `window_summary` attribute of the class with the output.
+            The function updates the `window_summary` attribute of the class with the output.
         """
 
         if window is None:
             window = [(0, 0)]
         if function not in ["mean", "median", "max", "min", "min_avg"]:
             print("Function not supported")
+            return None
         if not isinstance(window, list):
             window = [window]
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        subset_channels = self.subset(
+        subset_channels: Trace = self.subset(
             channels=channels,
             signal_type=signal_type,
             rec_type=rec_type,
@@ -443,14 +547,20 @@ class Trace:
                         channel_index
                     ],
                     label=label,
-                    unit=subset_channels.channel_information.unit[channel_index],
+                    # unit=subset_channels.channel_information.unit[channel_index],
                 )
         if plot:
-            subset_channels.plot(trace=subset_channels, show=True, window_data=output)
+            output.plot(trace=subset_channels, plot_trace=True)
         if return_output:
             return output
-        self.window_summary.merge(output)
+        self.window_summary.merge(window_summary=output)
         return None
+
+    def reset_window_summary(self) -> None:
+        """
+        Deletes the window summary.
+        """
+        self.window_summary = FunctionOutput()
 
     def average_trace(
         self,
@@ -459,26 +569,38 @@ class Trace:
         rec_type: Any = "",
         sweep_subset: Any = None,
         in_place: bool = True,
-    ) -> Any:
+    ) -> Any | None:
         """
-        Calculates the average trace for the given channels, signal_type types, and recording type.
+        Calculates the average trace for the given channels, signal_type types,
+        and recording type.
 
-        Parameters:
-        - channels (Any): The channels to calculate the average trace for.
-          If None, uses the first channel type.
-        - signal_type (Any): The signal_type types to calculate the average trace for.
-          Defaults to ['voltage', 'current'].
-        - rec_type (Any): The recording type to calculate the average trace for.
+        Args:
+            channels (Any, optional): Channels to include in the average.
+            Defaults to all channels.
+            signal_type (Any, optional): Signal types to include in the average.
+            Defaults to ['voltage', 'current'].
+            rec_type (Any, optional): Recording type to include in the average.
+            Defaults to "".
+            sweep_subset (Any, optional): Sweeps to include in the average.
+            Defaults to None.
+            in_place (bool, optional): If True, modifies the object in place.
+            If False, returns a new Trace object.
 
         Returns:
-        - Any: The average trace object.
+            None if in_place is True.
+            Trace: The average trace object if in_place is False.
+
+        Note:
+            The return type depends on the value of `in_place`. If `in_place` is True,
+            the method modifies the current object and returns None. If False, it returns
+            a new Trace object with the averaged data.
         """
 
         if channels is None:
             channels = self.channel_information.channel_number
         if signal_type is None:
             signal_type = ["voltage", "current"]
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
+        sweep_subset = _get_sweep_subset(array=self.time, sweep_subset=sweep_subset)
         if in_place:
             avg_trace = self
         else:
@@ -498,166 +620,62 @@ class Trace:
         return avg_trace
 
     def plot(
-        self,
-        signal_type: str = "",
-        channels: np.ndarray = np.array([], dtype=np.int64),
-        average: bool = False,
-        color: str = "black",
-        alpha: float = 0.5,
-        avg_color: str = "red",
-        align_onset: bool = True,
-        sweep_subset: Any = None,
-        window: tuple = (0, 0),
-        xlim: tuple = (),
-        show: bool = True,
-        return_fig: bool = False,
-    ) -> None | tuple:
+        self, backend: str = "matplotlib", **kwargs
+    ) -> None | pg.GraphicsLayoutWidget | tuple[Figure, Axes]:
         """
-        Plots the traces for the specified channels.
+        Plots the traces using the specified backend.
 
         Args:
-            signal_type (str): The type of signal_type to use. Must be either 'current' or
-            'voltage'.
-            channels (list, optional): The list of channels to plot. If None, all channels
-            will be plotted.
-                Defaults to None.
-            average (bool, optional): Whether to plot the average trace.
-                Defaults to False.
-            color (str, optional): The color of the individual traces. Can be a colormap.
-                Defaults to 'black'.
-            alpha (float, optional): The transparency of the individual traces.
-                Defaults to 0.5.
-            avg_color (str, optional): The color of the average trace.
-                Defaults to 'red'.
-            align_onset (bool, optional): Whether to align the traces on the onset.
-                Defaults to True.
-            sweep_subset (Any, optional): The subset of sweeps to plot.
-                Defaults to None.
-            window (tuple, optional): The time window to plot.
-                Defaults to (0, 0).
-            show (bool, optional): Whether to display the plot.
-                Defaults to True.
-            return_fig (bool, optional): Whether to return the figure.
-                Defaults to False.
+            backend (str): The plotting backend to use. Options are 'matplotlib' or 'pyqt'.
+            **kwargs: Additional keyword arguments for the plotting function.
 
         Returns:
-            None or Figure: If show is True, returns None. If return_fig is True,
-            returns the figure.
+            None or pg.GraphicsLayoutWidget: If using pyqtgraph, returns the plot widget.
         """
+        # Import here to avoid circular imports
+        # pylint: disable=import-outside-toplevel
+        from ephys.classes.plot.plot_trace import TracePlotPyQt, TracePlotMatplotlib
 
-        if len(channels) == 0:
-            channels = self.channel_information.channel_number
-        sweep_subset = _get_sweep_subset(self.time, sweep_subset)
-        trace_select = self.subset(
-            channels=channels, signal_type=signal_type, sweep_subset=sweep_subset
-        )
-
-        fig, channel_axs = plt.subplots(len(trace_select.channel), 1, sharex=True)
-
-        if len(trace_select.channel) == 0:
-            print("No traces found.")
-            return None
-
-        if align_onset:
-            time_array = trace_select.set_time(
-                align_to_zero=True,
-                cumulative=False,
-                stimulus_interval=0.0,
-                overwrite_time=False,
-            )
-        else:
-            time_array = trace_select.time
-
-        tmp_axs: Axes | None = None
-        for channel_index, channel in enumerate(trace_select.channel):
-            if len(trace_select.channel) == 1:
-                if isinstance(channel_axs, Axes):
-                    tmp_axs = channel_axs
-            else:
-                if isinstance(channel_axs, np.ndarray):
-                    if isinstance(channel_axs[channel_index], Axes):
-                        tmp_axs = channel_axs[channel_index]
-            if tmp_axs is None:
-                pass
-            else:
-                for i in range(channel.data.shape[0]):
-                    tmp_axs.plot(
-                        time_array[i, :],
-                        channel.data[i, :],
-                        color=utils.trace_color(
-                            traces=channel.data, index=i, color=color
-                        ),
-                        alpha=alpha,
-                    )
-                if window != (0, 0):
-                    tmp_axs.axvspan(
-                        xmin=window[0], xmax=window[1], color="gray", alpha=0.1
-                    )
-                if average:
-                    channel.channel_average(sweep_subset=sweep_subset)
-                    tmp_axs.plot(
-                        time_array[0, :], channel.average.trace, color=avg_color
-                    )
-                tmp_axs.set_ylabel(
-                    f"Channel {trace_select.channel_information.channel_number[channel_index]} "
-                    f"({trace_select.channel_information.unit[channel_index]})"
-                )
-        #   tmp_axs.set_ylabel(f'Channel')
-        if isinstance(tmp_axs, Axes):
-            tmp_axs.set_xlabel(
-                f"Time ({trace_select.time.units.dimensionality.string})"
-            )
-            if len(xlim) > 0:
-                tmp_axs.set_xlim(xlim[0], xlim[1])
-        plt.tight_layout()
-        if show:
-            plt.show()
-        #            return None
-        if return_fig:
-            return fig, channel_axs
-        return None
+        if backend == "matplotlib":
+            plot_out = TracePlotMatplotlib(trace=self, **kwargs)
+            return plot_out.plot()
+        if backend == "pyqt":
+            plot_out = TracePlotPyQt(trace=self, **kwargs)
+            return plot_out.plot()
+        raise ValueError("Unsupported backend. Use 'matplotlib' or 'pyqt'.")
 
     def plot_summary(
         self,
-        show_trace: bool = True,
+        plot_trace: bool = True,
         align_onset: bool = True,
-        label_filter: list | str = "",
-        color="black",
-        show=True,
+        label_filter: list | str | None = None,
+        **kwargs: Any,
     ) -> None:
         """
-        Plots a summary of the experiment data.
+        Plot a summary of the experiment data.
 
-        Parameters:
-        -----------
-        show_trace : bool, optional
-            If True, includes the trace in the plot. Default is True.
-        align_onset : bool, optional
-            If True, aligns the plot on the onset. Default is True.
-        label_filter : list or str, optional
-            A filter to apply to the labels. Default is None.
-        color : str, optional
-            The color to use for the trace plot. Default is 'black'.
+        Args:
+            plot_trace (bool, optional): If True, include the trace in the plot.
+            Default is True.
+            align_onset (bool, optional): If True, align the plot on the onset.
+            Default is True.
+            label_filter (list or str, optional): Filter to apply to the labels.
+            Default is None.
+            **kwargs: Additional keyword arguments for the plotting function.
 
         Returns:
-        --------
-        None
+            None
         """
 
-        if label_filter == "":
+        if label_filter == "" or label_filter is None:
             label_filter = []
         if self.window_summary is not None:
-            if show_trace:
-                self.window_summary.plot(
-                    trace=self,
-                    align_onset=align_onset,
-                    show=show,
-                    label_filter=label_filter,
-                    color=color,
-                )
-            else:
-                self.window_summary.plot(
-                    align_onset=align_onset, show=show, label_filter=label_filter
-                )
+            self.window_summary.plot(
+                trace=self,
+                align_onset=align_onset,
+                label_filter=label_filter,
+                plot_trace=plot_trace,
+                **kwargs,
+            )
         else:
             print("No summary data found")
