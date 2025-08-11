@@ -621,7 +621,7 @@ class Trace:
 
     def plot(
         self, backend: str = "matplotlib", **kwargs
-    ) -> None | pg.GraphicsLayoutWidget | tuple[Figure, Axes]:
+    ) -> None | TracePlotPyQt | tuple[Figure, Axes]:
         """
         Plots the traces using the specified backend.
 
@@ -641,7 +641,8 @@ class Trace:
             return plot_out.plot()
         if backend == "pyqt":
             plot_out = TracePlotPyQt(trace=self, **kwargs)
-            return plot_out.plot()
+            plot_out.plot()
+            return plot_out
         raise ValueError("Unsupported backend. Use 'matplotlib' or 'pyqt'.")
 
     def plot_summary(
