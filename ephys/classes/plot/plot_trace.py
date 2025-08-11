@@ -11,11 +11,15 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import matplotlib.colors as mcolors
 import pyqtgraph as pg
+import quantities
 
 from ephys.classes.trace import Trace
 from ephys.classes.class_functions import _get_sweep_subset
 from ephys import utils
 from ephys.classes.plot.plot_params import PlotParams
+
+# switch off antialiasing for pyqtgraph
+# pg.setConfigOptions(antialias=False)
 
 
 class TracePlot:
@@ -86,13 +90,19 @@ class TracePlot:
                 raise TypeError("Window must be a tuple or list of tuples.")
         return windows_to_display
 
-    def _prepare_time_array(self, trace_select):
+    def _prepare_time_array(self, trace_select, **kwargs) -> quantities.Quantity:
         """Prepare time array based on alignment settings"""
+        if kwargs:
+            self.align_onset = kwargs.get("align_onset", self.params.align_onset)
+            self.cumulative = kwargs.get("cumulative", self.params.cumulative)
+            self.stimulus_interval = kwargs.get(
+                "stimulus_interval", self.params.stimulus_interval
+            )
         if self.params.align_onset:
             return trace_select.set_time(
-                align_to_zero=True,
-                cumulative=False,
-                stimulus_interval=0.0,
+                align_to_zero=self.params.align_onset,
+                cumulative=self.params.cumulative,
+                stimulus_interval=self.params.stimulus_interval,
                 overwrite_time=False,
             )
         return trace_select.time
@@ -171,7 +181,7 @@ class TracePlotMatplotlib(TracePlot):
             print("No traces found.")
             return None
 
-        time_array = self._prepare_time_array(trace_select)
+        time_array = self._prepare_time_array(trace_select, **kwargs)
 
         windows_to_display = self.handle_windows()
 
@@ -279,6 +289,7 @@ class TracePlotPyQt(TracePlot):
 
     def __init__(self, trace: Trace, backend: str = "pyqt", **kwargs) -> None:
         super().__init__(trace=trace, backend=backend, **kwargs)
+        self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
 
     def plot(
         self,
@@ -354,7 +365,7 @@ class TracePlotPyQt(TracePlot):
             sweep_subset=self.params.sweep_subset,
         )
 
-        time_array = self._prepare_time_array(trace_select)
+        time_array = self._prepare_time_array(trace_select, **kwargs)
 
         if len(self.params.xlim) > 2:
             raise ValueError("xlim must be a tuple of two values.")
@@ -364,8 +375,8 @@ class TracePlotPyQt(TracePlot):
                 np.max(time_array.magnitude),
             )
 
-        win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
-        win.setBackground(self.params.bg_color)
+        self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
+        self.win.setBackground(self.params.bg_color)
         window_fill = pg.mkBrush(
             color=tuple(
                 np.round(color_val * 255)
@@ -390,7 +401,7 @@ class TracePlotPyQt(TracePlot):
         region: pg.LinearRegionItem | None = None
         channel_0: pg.PlotItem | None = None
         for channel_index, channel in enumerate(trace_select.channel):
-            channel_tmp = win.addPlot(row=channel_index, col=0)  # type: ignore
+            channel_tmp = self.win.addPlot(row=channel_index, col=0)  # type: ignore
             if channel_index == 0:
                 channel_0 = channel_tmp
             channel_tmp.setXLink(channel_0)
@@ -450,6 +461,9 @@ class TracePlotPyQt(TracePlot):
                         make_region_callback(region, win_item, window_index=win_index)
                     )
                     region.setZValue(10 + win_index)
+                    for line in region.lines:
+                        line.setPen(self.params.window_color)
+                        line.setHoverPen(self.params.window_color_hover)
                     channel_tmp.addItem(region)
 
             if self.params.average:
@@ -460,4 +474,55 @@ class TracePlotPyQt(TracePlot):
                     pen=pg.mkPen(color=self.params.avg_color, width=2),
                 )
 
-        return win
+    # return self.win
+
+    def update_theme(self, theme: str, **kwargs) -> None:
+        """Update the theme of the plot."""
+        self.params.apply_theme(theme)
+        self.params.update_params(**kwargs)
+        # Update the background and axis colors
+        self.win.setBackground(self.params.bg_color)
+        window_fill = pg.mkBrush(
+            color=tuple(
+                np.round(color_val * 255)
+                for color_val in mcolors.to_rgba(self.params.window_color, alpha=0.5)
+            )
+        )
+        window_fill_hover = pg.mkBrush(
+            color=tuple(
+                np.round(color_val * 255)
+                for color_val in mcolors.to_rgba(self.params.window_color, alpha=0.8)
+            )
+        )
+        window_items = self.handle_windows()
+        if self.trace.window is not None:
+            # Update existing regions with new theme colors
+            for i, region in enumerate(window_items):
+                if isinstance(region, pg.LinearRegionItem):
+                    region.setBrush(window_fill)
+                    region.setHoverBrush(window_fill_hover)
+                    for line in region.lines:
+                        line.setPen(pg.mkPen(color=self.params.window_color))
+                        line.setHoverPen(pg.mkPen(color=self.params.window_color_hover))
+        for plot_item in self.win.items():
+            if isinstance(plot_item, pg.PlotItem):
+                plot_item.setLabel(
+                    "left",
+                    color=self.params.axis_color,
+                    text=plot_item.getAxis("left").labelText,
+                )
+                plot_item.setLabel(
+                    "bottom",
+                    color=self.params.axis_color,
+                    text=plot_item.getAxis("bottom").labelText,
+                )
+                item_list = plot_item.listDataItems()
+                for i, curve in enumerate(item_list):
+                    curve.setPen(
+                        color=utils.color_picker_qcolor(
+                            length=len(item_list),
+                            index=i,
+                            alpha=self.params.alpha,
+                            color=self.params.color,
+                        )
+                    )
