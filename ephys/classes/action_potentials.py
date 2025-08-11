@@ -3,8 +3,9 @@ Action Potentials Class
 This module defines the ActionPotentials class, which is used to handle action
 potentials in voltage traces.
 """
+
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from scipy import signal
 import numpy as np
 from quantities import Quantity
@@ -61,13 +62,13 @@ def _ap_extract(
     ).flatten()
     action_potentials = np.full_like(ap_array, fill_value=np.nan)
     for i, ap_ind in enumerate(peak_index):
-        action_potentials[
-            i, onset_backwards_indices[i] : onset_indices[i]
-        ] = sweep.magnitude[
-            (ap_ind - half_window_len_samples + onset_backwards_indices[i]) : (
-                ap_ind + onset_indices[i] - half_window_len_samples
-            )
-        ]
+        action_potentials[i, onset_backwards_indices[i] : onset_indices[i]] = (
+            sweep.magnitude[
+                (ap_ind - half_window_len_samples + onset_backwards_indices[i]) : (
+                    ap_ind + onset_indices[i] - half_window_len_samples
+                )
+            ]
+        )
     return Quantity(action_potentials, sweep.units), peak_index
 
 
@@ -175,6 +176,7 @@ class ActionPotentials:
             window_len (float, optional): The length of the window for extracting action potentials.
         """
         from ephys.classes.voltage import VoltageTrace
+
         if not isinstance(voltage_channel, VoltageTrace):
             raise TypeError("voltage_channel must be a VoltageTrace object")
         if detection_threshold is None:
@@ -371,6 +373,8 @@ class ActionPotentials:
         align_threshold: bool = True,
         threshold: bool = False,
         save_path: str = "action_potentials.png",
+        backend: str = "matplotlib",
+        **kwargs: Any,
     ) -> None:
         """
         Plot the action potentials.
@@ -380,96 +384,6 @@ class ActionPotentials:
             sweep_numbers (np.ndarray | list | int | None): The sweep numbers to plot.
             save_path (str): The path to save the plot.
         """
-        if sweep_numbers is None:
-            sweep_numbers = np.unique(self.sweep_numbers)
-        else:
-            if isinstance(sweep_numbers, int):
-                if sweep_numbers not in self.sweep_numbers:
-                    print("Sweep number out of range")
-                    return None
-                sweep_numbers = [sweep_numbers]
-            elif isinstance(sweep_numbers, list):
-                if sweep_numbers not in self.sweep_numbers:
-                    print("Sweep number out of range")
-                    return None
-                sweep_numbers = np.array(sweep_numbers)
-            elif not isinstance(sweep_numbers, np.ndarray):
-                print("Sweep numbers must be a list or numpy array")
-                return None
-            if len(sweep_numbers) > len(self.sweep_numbers):
-                print("Sweep numbers out of range")
-                return None
-            sweep_numbers = np.unique(sweep_numbers)
-        mask = np.isin(self.sweep_numbers, sweep_numbers)
-        filtered_action_potentials = self.action_potentials[mask]
-        sweep_vals = self.sweep_numbers[mask]
-        # ap_numbers = self.ap_numbers[mask]
-        # action_potentials per sweep
-        unique_sweeps = np.unique(sweep_vals)
-
-        # make a plot for each channel
-        channels = np.unique(self.channel[mask])
-        fig, axs = plt.subplots(
-            len(channels), 1, figsize=(8, 4 * len(channels)), squeeze=False
-        )
-        axs = axs.flatten()
-        for idx, ch in enumerate(channels):
-            ch_mask = self.channel[mask] == ch
-            ch_action_potentials = filtered_action_potentials[ch_mask]
-            ch_sweeps = sweep_vals[ch_mask]
-            ch_threshold_index = self.threshold["index"][ch_mask]
-            for i, action_potential in enumerate(ch_action_potentials):
-                sweep_id = ch_sweeps[i]
-                sweep_color = cm.get_cmap("gist_rainbow")(
-                    (sweep_id - unique_sweeps.min())
-                    / (np.ptp(unique_sweeps) if np.ptp(unique_sweeps) else 1)
-                )
-                if align_threshold:
-                    time_scale = (
-                        self.time.magnitude - self.time.magnitude[ch_threshold_index[i]]
-                    )
-                else:
-                    time_scale = self.time.magnitude
-                axs[idx].plot(
-                    time_scale, action_potential, color=sweep_color, alpha=0.2
-                )
-            axs[idx].set_title(f"Action Potentials - Channel {ch}")
-            axs[idx].set_xlabel(f"Time ({self.time.dimensionality.string})")
-            axs[idx].set_ylabel(
-                f"Amplitude ({self.action_potentials.dimensionality.string})"
-            )
-        if threshold:
-            for idx, ch in enumerate(channels):
-                ch_mask = self.channel[mask] == ch
-                ch_threshold = self.threshold["threshold"][ch_mask]
-                ch_threshold_index = self.threshold["index"][ch_mask]
-                ch_sweeps = sweep_vals[ch_mask]
-                for i, i_threshold in enumerate(ch_threshold):
-                    sweep_id = ch_sweeps[i]
-                    sweep_color = cm.get_cmap("gist_rainbow")(
-                        (sweep_id - unique_sweeps.min())
-                        / (np.ptp(unique_sweeps) if np.ptp(unique_sweeps) else 1)
-                    )
-                    if align_threshold:
-                        time_scale = 0.0
-                    else:
-                        time_scale = self.time.magnitude[ch_threshold_index[i]]
-                    axs[idx].plot(
-                        time_scale,
-                        i_threshold,
-                        color=sweep_color,
-                        marker=".",
-                        markersize=5,
-                    )
-
-        fig.tight_layout()
-
-        if show:
-            plt.show()
-        if save:
-            plt.savefig(save_path)
-        plt.close(fig)
-        return None
 
     def to_dict(self) -> dict | None:
         """
