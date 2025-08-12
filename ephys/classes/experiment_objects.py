@@ -352,6 +352,18 @@ class ExpData:
         if sort:
             self.sort_by_date()
 
+    def remove_file(self, index: int) -> None:
+        """
+        Removes a file from the ExpData object.
+
+        Args:
+            index (int): The index of the file to be removed.
+        """
+        if 0 <= index < len(self.protocols):
+            removed_file = self.protocols.pop(index)
+            self.meta_data.remove_file_info(removed_file.file_path)
+            print(f"Removed file at index {index}: {removed_file.file_path}")
+
     def sort_by_date(self):
         """
         Sorts the protocols by the date of the experiment.
