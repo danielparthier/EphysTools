@@ -156,7 +156,15 @@ class FunctionOutputMatplotlib(FunctionOutputPlot):
         if align_onset:
             x_axis = self.function_output.location
         else:
-            x_axis = self.function_output.time
+            if trace is not None:
+                x_axis = self.function_output.location + np.array(
+                    [
+                        trace.time[int(sweep - 1), 0]
+                        for sweep in self.function_output.sweep
+                    ]
+                )
+            else:
+                x_axis = self.function_output.time
         for color_index, label in enumerate(unique_labels):
             # add section to plot on channel by channel basis
             for channel_index, channel_number in enumerate(
