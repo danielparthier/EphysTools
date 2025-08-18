@@ -1,31 +1,33 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 from PySide6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
+    QHBoxLayout,
     QWidget,
     QLineEdit,
     QPushButton,
     QCalendarWidget,
 )
 from PySide6.QtCore import Qt, QDate
+from ephys.GUI.styles import apply_style
 
 
 class MetaDataWindow(QMainWindow):
     def __init__(self, on_confirm=None) -> None:
         self.on_confirm = on_confirm
         super().__init__()
+        import ephys.GUI.GUI_config as config
+
+        self.setStyleSheet(apply_style(config.theme))
         self.setWindowTitle("MetaData")
         self.setGeometry(100, 100, 200, 300)
-        self.setMaximumHeight(500)
-        self.setMaximumWidth(300)
+        self.setMaximumSize(300, 500)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
 
         meta_data_layout = QVBoxLayout()
         # Create a calendar widget
         calendar = QCalendarWidget()
-        calendar.setMaximumWidth(180)
-        calendar.setMaximumHeight(190)
+        calendar.setMaximumSize(180, 190)
         calendar.setGridVisible(True)
         calendar.setVerticalHeaderFormat(
             QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader
@@ -58,22 +60,21 @@ class MetaDataWindow(QMainWindow):
         central_widget.setLayout(meta_data_layout)
         self.setCentralWidget(central_widget)
 
+        button_layout = QHBoxLayout()
+        meta_data_layout.addLayout(button_layout)
+
         # add button to confirm metadata and calendar selection then close window
-        confirm_button = QPushButton("Confirm")
+        confirm_button = QPushButton("OK")
         confirm_button.setMaximumWidth(150)
         confirm_button.setCheckable(False)
         confirm_button.clicked.connect(self.confirm_and_close)
-        meta_data_layout.addWidget(
-            confirm_button, alignment=Qt.AlignmentFlag.AlignJustify
-        )
+        button_layout.addWidget(confirm_button, alignment=Qt.AlignmentFlag.AlignJustify)
         # add button to close window
         cancel_button = QPushButton("Cancel")
         cancel_button.setMaximumWidth(150)
         cancel_button.setCheckable(False)
         cancel_button.clicked.connect(self.close)
-        meta_data_layout.addWidget(
-            cancel_button, alignment=Qt.AlignmentFlag.AlignCenter
-        )
+        button_layout.addWidget(cancel_button, alignment=Qt.AlignmentFlag.AlignJustify)
         # add button to close window
         self.setLayout(meta_data_layout)
 
