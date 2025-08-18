@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from ephys.labfolder.classes.labfolder_access import LabFolderUserInfo, labfolder_login
 from ephys.labfolder.labfolder_config import labfolder_url
+from ephys.GUI.styles import apply_style
 
 if TYPE_CHECKING:
     from ephys.GUI.sidemenu import SideMenu
@@ -24,6 +25,10 @@ class LabfolderLoginWindow(QMainWindow):
         self.password = None
         self.clicked_status = False
         super().__init__()
+        import ephys.GUI.GUI_config as config
+
+        self.setStyleSheet(apply_style(config.theme))
+
         self.setWindowTitle("Labfolder Login")
         self.setGeometry(100, 100, 300, 100)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
@@ -74,7 +79,8 @@ class LabfolderLoginWindow(QMainWindow):
                 self.username_input.text(),
                 self.password_input.text(),
             )
-        self.close()
+        if self.username_input.text() != "":
+            self.close()
 
 
 class LabfolderWindow(QPushButton):
@@ -106,17 +112,22 @@ class LabfolderWindow(QPushButton):
         )
         if len(self.labfolder_auth.auth_token) == 0:
             print("Labfolder authentication failed")
-            return None
-
-        popup_message = QMessageBox(self)
-        popup_message.setWindowTitle("Labfolder Login Successful")
-        popup_message.setText("Hello " + self.labfolder_auth.first_name + "!")
-        popup_message.setWindowOpacity(0.5)
-        popup_message.exec()
-        self.current_user = (
-            self.labfolder_auth.first_name + " " + self.labfolder_auth.last_name
-        )
-        self.side_menu.current_user_label.setPlaceholderText(self.current_user)
-        # add popup message that login was successful
-        # Close the login window
-        self.labfolder_login_window.close()
+            popup_message = QMessageBox(self)
+            popup_message.setIcon(QMessageBox.Icon.Warning)
+            popup_message.setWindowTitle("Labfolder Login Failed")
+            popup_message.setText("Please check your credentials and try again.")
+            popup_message.setWindowOpacity(0.5)
+            popup_message.exec()
+        else:
+            popup_message = QMessageBox(self)
+            popup_message.setWindowTitle("Labfolder Login Successful")
+            popup_message.setText("Hello " + self.labfolder_auth.first_name + "!")
+            popup_message.setWindowOpacity(0.5)
+            popup_message.exec()
+            self.current_user = (
+                self.labfolder_auth.first_name + " " + self.labfolder_auth.last_name
+            )
+            self.side_menu.current_user_label.setPlaceholderText(self.current_user)
+            # add popup message that login was successful
+            # Close the login window
+            self.labfolder_login_window.close()
