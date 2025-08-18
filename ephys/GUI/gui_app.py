@@ -4,8 +4,6 @@ import sys
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
-    Qt,
-    QThreadPool,
     QRunnable,
     Slot,
     QObject,
@@ -14,11 +12,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
-    QFrame,
-    QMainWindow,
-    QSplitter,
-    QTabWidget,
-    QWidget,
 )
 
 # from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -27,11 +20,6 @@ from PySide6.QtWidgets import (
 
 from .styles import apply_style
 from ephys.classes.experiment_objects import ExpData
-from ephys.GUI.sidemenu import SideMenu
-from ephys.GUI.sessioninfo import SessionInfo
-from ephys.GUI.trace_view import TracePlotWindow
-from ephys.GUI.sidebar_right import SideBarRight
-from ephys.GUI.menubar import FileMenu
 from ephys.GUI.mainwindow import MainWindow
 
 # filepath: /home/daniel/Work/RETAIN/Code/MossyFibre/ephys/GUI/gui_app.py
@@ -80,12 +68,20 @@ class WorkerSignals(QObject):
     error_occurred = Signal(str)
 
 
-app = QApplication(sys.argv)
-theme = "dark"
-style: str = apply_style(theme=theme)
-app.setStyleSheet(style)
+def run_app():
+    """
+    Function to run the application.
+    This is useful for testing purposes.
+    """
+    app = QApplication(sys.argv)
+    theme = "dark"
+    style: str = apply_style(theme=theme)
+    app.setStyleSheet(style)
 
-window = MainWindow()
-window.show()
+    window = MainWindow()
+    window.show()
 
-app.exec()
+    app.exec()
+
+
+run_app()
