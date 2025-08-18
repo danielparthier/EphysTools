@@ -1,17 +1,17 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from PySide6.QtWidgets import QVBoxLayout, QFrame, QWidget
-from pyqtgraph import GraphicsLayoutWidget
-from matplotlib.axes._axes import Axes
-from matplotlib.figure import Figure
-from pyqtgraph.widgets.GraphicsLayoutWidget import GraphicsLayoutWidget
-from PySide6.QtCore import QObject, Signal, Slot, QRunnable
-from PySide6.QtWidgets import QLabel
 
+from typing import TYPE_CHECKING
+
+from matplotlib.figure import Figure
+from matplotlib.axes._axes import Axes
+
+from PySide6.QtCore import QObject, QRunnable, Signal, Slot
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
     from ephys.GUI.gui_app import MainWindow
     from ephys.classes.trace import Trace
+    from ephys.classes.plot.plot_trace import TracePlotPyQt
 
 
 class PlotWorker(QRunnable):
@@ -55,6 +55,11 @@ class TracePlotWindow(QWidget):
             self.main_window.close_tab
         )
 
+        # Trace List
+        # TODO: manage handling of list - removing items etc.
+        if isinstance(self.main_window.trace_list, list):
+            self.trace_list = self.main_window.trace_list
+
         # Create a frame for the plot
         plot_frame = QFrame()
         plot_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -81,66 +86,31 @@ class TracePlotWindow(QWidget):
         self.plot_area_layout = QVBoxLayout(plot_area)
         plot_area.setLayout(self.plot_area_layout)
 
-    # def add_trace_plot(self, trace: Trace, **kwargs) -> None:
-    #     """Add a trace plot widget to the plot area using a worker thread."""
-    #     # Show loading indicator
-    #     loading_label = QLabel("Creating plot...")
-    #     self.plot_area_layout.addWidget(loading_label)
-
-    #     # Create worker
-    #     worker = PlotWorker(
-    #         trace, alpha=0.5, theme=self.main_window.session_info.theme, **kwargs
-    #     )
-
-    #     # Connect signals
-    #     worker.signals.finished.connect(self._handle_plot_finished)
-    #     worker.signals.error.connect(self._handle_plot_error)
-
-    #     # Store reference to loading label
-    #     worker.loading_label = loading_label
-
-    #     # Start the worker
-    #     self.main_window.threadpool.start(worker)
-
-    # def _handle_plot_finished(self, result):
-    #     """Handle completed plot from worker thread."""
-    #     # Get the sender
-    #     worker = self.sender().parent()
-
-    #     # Remove loading indicator
-    #     if hasattr(worker, "loading_label"):
-    #         self.plot_area_layout.removeWidget(worker.loading_label)
-    #         worker.loading_label.deleteLater()
-
-    #     # Add the plot widget
-    #     if isinstance(result, GraphicsLayoutWidget):
-    #         self.plot_area_layout.addWidget(result)
-
-    # def _handle_plot_error(self, error_message):
-    #     """Handle error from worker thread."""
-    #     # Get the sender
-    #     worker = self.sender().parent()
-
-    #     # Remove loading indicator
-    #     if hasattr(worker, "loading_label"):
-    #         self.plot_area_layout.removeWidget(worker.loading_label)
-    #         worker.loading_label.deleteLater()
-
-    #     # Show error message
-    #     error_label = QLabel(f"Error creating plot: {error_message}")
-    #     error_label.setStyleSheet("color: red")
-    #     self.plot_area_layout.addWidget(error_label)
-
     def add_trace_plot(self, trace: Trace, **kwargs) -> None:
+        from ephys.classes.plot.plot_trace import TracePlotPyQt
+
         """Add a trace plot widget to the plot area."""
-        trace_plot: None | GraphicsLayoutWidget | tuple[Figure, Axes] = trace.plot(
+        trace_plot: None | TracePlotPyQt | tuple[Figure, Axes] = trace.plot(
             backend="pyqt",
             alpha=0.5,
+            color="viridis",
+            show=False,
+            return_fig=True,
             theme=self.main_window.session_info.theme,
             **kwargs,
         )
-        if isinstance(trace_plot, GraphicsLayoutWidget):
-            self.plot_area_layout.addWidget(trace_plot)
+
+        if isinstance(trace_plot, TracePlotPyQt):
+            self.trace_list.append(trace_plot)
+            self.plot_area_layout.addWidget(trace_plot.win)
+
+    def update_theme(self, theme: str) -> None:
+        """Update the theme of the plot area."""
+        for trace_plot in self.trace_list:
+            if hasattr(trace_plot, "update_theme"):
+                trace_plot.update_theme(theme)
+            else:
+                print(f"Trace plot {trace_plot} does not have update_theme method.")
 
     def cleanup(self):
         """Clean up resources before widget is destroyed"""
