@@ -1,8 +1,13 @@
-from typing import cast
-
-from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtCore import Qt, QThreadPool, QSize
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QFrame, QMainWindow, QSplitter, QTabWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QMainWindow,
+    QSplitter,
+    QTabWidget,
+    QSpinBox,
+    QCheckBox,
+)
 
 from ephys.classes.experiment_objects import ExpData
 from ephys.GUI.sessioninfo import SessionInfo
@@ -10,6 +15,7 @@ from ephys.GUI.sidemenu import SideMenu, SideMenuContainer
 from ephys.GUI.sidebar_right import SideBarRight
 from ephys.GUI.menubar import FileMenu
 from ephys.GUI.trace_view import TracePlotWindow
+from PySide6.QtWidgets import QWidget, QHBoxLayout
 
 
 class MainWindow(QMainWindow):
@@ -20,6 +26,7 @@ class MainWindow(QMainWindow):
         self.session_info = SessionInfo()
 
         self.threadpool = QThreadPool()
+        self.highlight = False
         thread_count = self.threadpool.maxThreadCount()
         print(f"Multithreading enabled with {thread_count} threads.")
 
@@ -32,28 +39,48 @@ class MainWindow(QMainWindow):
         icon = QIcon("logos/Logo_short.svg")
         icon_action = QAction(icon, "", self)
 
+        self.trace_list = []
+
         # Add a status bar
         self.status_bar = self.statusBar()
         self.status_bar.addAction(icon_action)
         self.status_bar.showMessage("Ready")
 
+        # Add sweep selector to the status bar using a QWidget wrapper
+
+        sweep_selector_container = QWidget()
+        sweep_selector_layout = QHBoxLayout(sweep_selector_container)
+        sweep_selector_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.sweep_selector = QSpinBox()
+        self.sweep_selector.setSingleStep(1)
+
+        self.highlight_switch = QCheckBox("Highlight")
+        self.highlight_switch.setChecked(self.highlight)
+        self.highlight_switch.stateChanged.connect(self.change_highlight)
+        self.status_bar.addPermanentWidget(self.highlight_switch)
+
+        sweep_selector_layout.addWidget(self.sweep_selector)
+        self.sweep_selector.valueChanged.connect(self.sweep_highlight)
+
+        self.status_bar.addPermanentWidget(sweep_selector_container)
+
         # Create a splitter
         splitter = QSplitter()
         splitter.setOrientation(Qt.Orientation.Horizontal)
-        splitter.setMaximumHeight(2400)
         self.setCentralWidget(splitter)
         # Create a frame
 
         sidebar_frame = QFrame()
         sidebar_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        sidebar_frame.setMinimumWidth(150)
-        sidebar_frame.setMaximumWidth(300)
-        sidebar_frame.setMinimumHeight(150)
-        sidebar_frame.setMaximumHeight(1200)
+        sidebar_frame.setMinimumSize(QSize(150, 150))
+        sidebar_frame.setMaximumSize(QSize(300, 1200))
 
         self.side_menu_container = SideMenuContainer()
         self.side_menu_container.setParent(sidebar_frame)
-        self.side_menu_container.set_background_svg(svg_path="logos/Logo_short.svg")
+        self.side_menu_container.set_background_svg(
+            svg_path="logos/Ephys_letters_gray.svg"
+        )
         # splitter.addWidget(sidebar_frame)
         # Create a layout for the frame
         menu_layout_left = SideMenu(self)
@@ -66,21 +93,16 @@ class MainWindow(QMainWindow):
         self.trace_plot = QTabWidget()
         self.trace_plot.setTabsClosable(True)
         self.trace_plot.setMovable(True)
-        self.trace_plot.setMinimumWidth(800)
-        self.trace_plot.setMinimumHeight(600)
-        self.trace_plot.setMaximumWidth(2400)
-        self.trace_plot.setMaximumHeight(1200)
-        self.trace_plot.setTabsClosable(True)
-        self.trace_plot.setMovable(True)
+        self.trace_plot.setMinimumSize(800, 600)
+        self.trace_plot.currentChanged.connect(self.connect_sweep_selector)
         self.trace_plot.tabCloseRequested.connect(self.close_tab)
+
         splitter.addWidget(self.trace_plot)
 
         # Add a sidebar on the right side
         sidebar_right = SideBarRight(self)
-        sidebar_right.setMinimumWidth(180)
-        sidebar_right.setMaximumWidth(300)
-        sidebar_right.setMinimumHeight(150)
-        sidebar_right.setMaximumHeight(1200)
+        sidebar_right.setMinimumSize(QSize(180, 150))
+        sidebar_right.setMaximumSize(QSize(300, 1200))
         splitter.addWidget(sidebar_right)
 
         menu_layout_left.addWidget(self.side_menu_container)
@@ -90,29 +112,98 @@ class MainWindow(QMainWindow):
 
         self.show()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         print("Window closed")
         event.accept()
 
     def close_tab(self, index: int) -> None:
         """Close the tab at the given index."""
-        tab_selected: TracePlotWindow = cast(
-            TracePlotWindow, self.trace_plot.widget(index)
-        )
-        print(index, tab_selected)
-        if index >= 0:
-            self.trace_plot.removeTab(index)
-            print(f"Closed tab at index {index}")
-            if hasattr(tab_selected, "cleanup") and callable(
-                getattr(tab_selected, "cleanup", None)
-            ):
+        # Store a reference to the widget before removing the tab
+        tab_selected = self.trace_plot.widget(index)
+        tab_title = self.trace_plot.tabText(index)
+
+        # Disconnect the tabCloseRequested signal temporarily to prevent cascading closes
+        old_signal = self.trace_plot.tabCloseRequested.disconnect()
+
+        # Remove just this one tab
+        self.trace_plot.removeTab(index)
+        print(f"Closed tab '{tab_title}' at index {index}")
+
+        # Reconnect the signal
+        self.trace_plot.tabCloseRequested.connect(self.close_tab)
+
+        # Clean up the tab's resources safely
+        if isinstance(tab_selected, TracePlotWindow):
+            try:
                 tab_selected.cleanup()
-        if tab_selected is not None:
-            # Ensure the tab is properly deleted
-            if hasattr(tab_selected, "deleteLater"):
-                tab_selected.deleteLater()
-            else:
-                print("Tab selected does not have deleteLater method")
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+
+            # Schedule widget for deletion
+            tab_selected.deleteLater()
+
+    def on_color_selected(self, color) -> None:
+        # Handle the selected color
+        print(f"Selected color: {color.name()}")
+
+    def _sweep_highlight(self, sweep_number: int | None) -> None:
+        """Highlight a specific sweep in the plot."""
+        current_tab_index = self.trace_plot.currentIndex()
+        print(current_tab_index)
+        current_trace_tab = self.trace_plot.widget(0)
+        sweep_index = None
+        if isinstance(current_trace_tab, TracePlotWindow):
+            print(current_trace_tab.trace_list)
+            print(len(current_trace_tab.trace_list))
+            current_plot = current_trace_tab.trace_list[current_tab_index]
+            if sweep_number is None:
+                sweep_index = None
+            if isinstance(sweep_number, int):
+                sweep_index = sweep_number - 1
+            current_plot.sweep_highlight(sweep_index)
+
+    def sweep_highlight(self, sweep_number: int | None = None) -> None:
+        if self.highlight_switch.isChecked():
+            self._sweep_highlight(sweep_number)
+        else:
+            self._sweep_highlight(sweep_number=None)
+
+    def connect_sweep_selector(self) -> None:
+        current_tab_index: int = self.trace_plot.currentIndex()
+        print(current_tab_index)
+        self.sweep_selector.setRange(
+            1, self.trace_list[current_tab_index].trace.sweep_count
+        )
+        print(self.trace_list[current_tab_index].trace.sweep_count)
+        self.sweep_selector.setValue(
+            self.trace_list[current_tab_index].highlight["sweep_index"]
+        )
+
+    def change_highlight(self) -> None:
+        if not self.highlight_switch.isChecked():
+            self.sweep_highlight(sweep_number=None)
+        else:
+            self.sweep_highlight(sweep_number=self.sweep_selector.value())
+
+    # def close_tab(self, index: int) -> None:
+    #     """Close the tab at the given index."""
+    #     tab_selected: TracePlotWindow = cast(
+    #         TracePlotWindow, self.trace_plot.widget(index)
+    #     )
+    #     print(index, tab_selected)
+    #     if index >= 0:
+    #         self.trace_plot.removeTab(index)
+    #         print(f"Closed tab at index {index}")
+    #         if hasattr(tab_selected, "cleanup") and callable(
+    #             getattr(tab_selected, "cleanup", None)
+    #         ):
+    #             tab_selected.cleanup()
+    #     if tab_selected is not None:
+    #         # Ensure the tab is properly deleted
+    #         if hasattr(tab_selected, "deleteLater"):
+    #             tab_selected.deleteLater()
+    #         else:
+    #             print("Tab selected does not have deleteLater method")
 
     # def choose_file(self):
     #     # Store the dialog as an instance attribute to prevent it from being deleted
