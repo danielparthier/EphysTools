@@ -130,7 +130,10 @@ class FunctionOutputMatplotlib(FunctionOutputPlot):
             return None
         if label_filter is None:
             label_filter = []
-        if trace is not None:
+        if trace is not None:  # plot_output.plot(
+            #     trace=trace,
+            #     label_filter=label_filter,
+            # )
             trace_select: Trace = trace.subset(
                 channels=self.function_output.channel,
                 signal_type=self.function_output.signal_type,
@@ -231,7 +234,7 @@ class FunctionOutputMatplotlib(FunctionOutputPlot):
                     channel_number = np.unique(self.function_output.channel)
                     channel_axs.set_ylabel(
                         f"Channel {int(channel_number)} " f"({channel_unit[0]})",
-                        labelcolor=self.params.axis_color,
+                        color=self.params.axis_color,
                     )
         if isinstance(channel_axs, np.ndarray):
             channel_axs[0].legend(loc="best")
