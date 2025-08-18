@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from matplotlib import cm
 import pandas as pd
 
+
 if TYPE_CHECKING:
     from ephys.classes.events import Events
     from ephys.classes.voltage import VoltageTrace
@@ -384,6 +385,31 @@ class ActionPotentials:
             sweep_numbers (np.ndarray | list | int | None): The sweep numbers to plot.
             save_path (str): The path to save the plot.
         """
+        if backend == "matplotlib":
+            from ephys.classes.plot.plot_action_potentials import (
+                ActionPotentialsMatplotlib,
+            )
+
+            plot = ActionPotentialsMatplotlib(action_potentials=self)
+            plot.plot_matplotlib_action_potentials(
+                sweep_numbers=sweep_numbers,
+                align_threshold=align_threshold,
+                threshold=threshold,
+                save_path=save_path,
+                show=show,
+                save=save,
+            )
+        elif backend == "pyqtgraph":
+            from ephys.classes.plot.plot_action_potentials import (
+                ActionPotentialsPyQt,
+            )
+
+            plot = ActionPotentialsPyQt(action_potentials=self)
+            plot.plot(
+                show=show,
+                save=save,
+                save_path=save_path,
+            )
 
     def to_dict(self) -> dict | None:
         """
