@@ -11,12 +11,12 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 
-from PySide6.QtGui import QPainter, QPixmap, QBrush, QColor
+from PySide6.QtGui import QPainter, QColor, QBrush
 from PySide6.QtSvg import QSvgRenderer
 
-from PySide6.QtCore import Qt, QDate, QSize, QRect
+from PySide6.QtCore import Qt, QDate
+from ephys.GUI.labfolder import LabfolderWindow, LabfolderLoginWindow
 from ephys.GUI.meta_data import MetaDataWindow
-from ephys.GUI.labfolder import LabfolderWindow
 from ephys.GUI.styles import apply_style
 from ephys.GUI.trace_view import TracePlotWindow
 from ephys.classes.experiment_objects import ExpData
@@ -27,10 +27,12 @@ if TYPE_CHECKING:
 
 
 class FileSelector(QFileDialog):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setFileMode(QFileDialog.FileMode.ExistingFiles)
-        self.setNameFilter("WCP files (*.wcp);;ABF files (*.abf)")
+        self.setNameFilter(
+            "WCP/ABF files (*.wcp | *.abf);;WCP files (*.wcp);;ABF files (*.abf)"
+        )
         self.setViewMode(QFileDialog.ViewMode.List)
         self.setOption(QFileDialog.Option.ReadOnly, True)
         self.setOption(QFileDialog.Option.DontUseNativeDialog, True)
@@ -47,8 +49,10 @@ class FileSelector(QFileDialog):
 
 class SideMenu(QVBoxLayout):
     def __init__(self, main_window: "MainWindow") -> None:
+        from ephys.GUI.meta_data import MetaDataWindow
+
         super().__init__()
-        self.main_window = main_window
+        self.main_window: MainWindow = main_window
         self.theme = config.theme
         if "dark" in self.theme:
             self.theme_title = "Light Mode"
@@ -83,14 +87,14 @@ class SideMenu(QVBoxLayout):
         self.file_selector_button.setCheckable(False)
 
         # Labfolder Login
-        self.labfolder_login_button = LabfolderWindow(self)
+        self.labfolder_login_button = LabfolderWindow(side_menu=self)
 
         # File List
         combobox = QComboBox()
         combobox.setMaximumWidth(150)
         combobox.setPlaceholderText("Select File")
         combobox.addItems(self.main_window.session_info.file_list)
-        self.combobox = combobox
+        self.combobox: QComboBox = combobox
 
         # Add widgets to the layout
         self.addWidget(self.current_user_label)
@@ -108,7 +112,7 @@ class SideMenu(QVBoxLayout):
         self.style_switch.stateChanged.connect(self.change_style)
         self.addWidget(self.style_switch)
 
-    def change_style(self):
+    def change_style(self) -> None:
         """
         Change the style of the application.
         """
@@ -116,22 +120,37 @@ class SideMenu(QVBoxLayout):
             self.theme = "light"
             self.theme_title = "Dark Mode"
             config.theme = "light"
+            self.main_window.side_menu_container.set_background_svg(
+                svg_path="logos/Ephys_letters.svg"
+            )
+
             # change color of switch to light
             # self.style_switch.setStyleSheet("color: black;")
         else:
             self.theme = "dark"
             self.theme_title = "Light Mode"
+            self.main_window.side_menu_container.set_background_svg(
+                svg_path="logos/Ephys_letters_gray.svg"
+            )
             # self.style_switch.setStyleSheet("color: white;")
             config.theme = "dark"
         self.style_switch.setText(self.theme_title)
         style_sheet = apply_style(theme=self.theme)
         self.main_window.setStyleSheet(style_sheet)
-        print(config.theme)
+        if hasattr(self.main_window, "trace_plot"):
+            for i in range(self.main_window.trace_plot.count()):
+                tab = self.main_window.trace_plot.widget(i)
+                if isinstance(tab, TracePlotWindow):
+                    tab.update_theme(self.theme)
+        if isinstance(self.meta_data_window, MetaDataWindow):
+            self.meta_data_window.setStyleSheet(style_sheet)
+            # change calendar header background
+            header_format = self.meta_data_window.calendar.headerTextFormat()
+            header_format.setBackground(QColor("blue"))
+            header_format.setForeground(QColor("white"))
         self.main_window.session_info.theme = self.theme
 
-        print(f"Style changed to {self.theme}")
-
-    def connect_to_main_window(self):
+    def connect_to_main_window(self) -> None:
         self.main_window.session_info.current_user = self.current_user_label.text()
         self.meta_data_button.clicked.connect(self.add_meta_data)
         self.file_selector_button.clicked.connect(self.choose_file)
@@ -152,8 +171,8 @@ class SideMenu(QVBoxLayout):
         else:
             print("Data already loaded, adding file to existing data")
             print(self.main_window.data.meta_data_summary())
-            data = self.main_window.data
-            data.add_file(file_path, experimenter_name)
+            data: ExpData = self.main_window.data
+            data.add_file(file_path=file_path, experimenter=experimenter_name)
 
         # data = DataLoader(file_path=file_path, experimenter_name=experimenter_name)
         # self.main_window.threadpool.start(data)
@@ -177,39 +196,42 @@ class SideMenu(QVBoxLayout):
             print(f"File {i}: {file_name}")
             # Create a new tab for each file
 
-            trace_plot = TracePlotWindow(self.main_window, file_name)
-
+            trace_plot = TracePlotWindow(
+                main_window=self.main_window, file_name=file_name
+            )
             trace_plot.add_trace_plot(trace=self.main_window.data.protocols[i])
+            self.main_window.trace_plot.addTab(trace_plot, file_name)
 
         self.refresh_file_list()
 
-    def choose_file(self):
+    def choose_file(self) -> None:
         # Store the dialog as an instance attribute to prevent it from being deleted
         self.get_file = FileSelector()
         # self.get_file.exec()
         file_path = self.get_file.getOpenFileNames(
             self.main_window,
-            "Select WCP files",
+            "Select WCP/ABF files",
             "data/WCP/WholeCell",
-            "WCP files (*.wcp)",
+            "All supported (*.wcp and *.abf);;WCP files (*.wcp);;ABF files (*.abf)",
         )[0]
         # if not file_path:
         #     print("No files selected")
         #     return None
-        print(f"Selected files: {file_path}")
         self.file_loading(file_path)
         if isinstance(file_path, str):
             file_path = [file_path]
         self.main_window.session_info.file_list = file_path
 
-    def add_meta_data(self):
+    def add_meta_data(self) -> None:
+        from ephys.GUI.meta_data import MetaDataWindow
+
         # Open the MetaDataWindow as a separate window and keep it open
         self.meta_data_window = MetaDataWindow(on_confirm=self.get_meta_data)
         self.meta_data_window.show()
         # make sure that content of meta_data_window is transferred to the main window
         print("MetaData window opened")
 
-    def get_meta_data(self, experimenter_name: str, selected_date: QDate):
+    def get_meta_data(self, experimenter_name: str, selected_date: QDate) -> None:
         self.main_window.session_info.experimenter_name_val = experimenter_name
         self.main_window.session_info.exp_date = selected_date.toString(
             Qt.DateFormat.ISODate
@@ -225,7 +247,7 @@ class SideMenu(QVBoxLayout):
         )
         print(f"Selected date: " + self.main_window.session_info.exp_date)
 
-    def refresh_file_list(self):
+    def refresh_file_list(self) -> None:
         """
         Refresh the file list in the combobox.
         """
@@ -238,15 +260,15 @@ class SideMenu(QVBoxLayout):
 
 
 class SideMenuContainer(QWidget):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(parent=None)
         self.svg_renderer = None
-        self.setFixedSize(150, 150)
+        self.setFixedSize(120, 48)
 
-    def set_background_svg(self, svg_path):
+    def set_background_svg(self, svg_path) -> None:
         self.svg_renderer = QSvgRenderer(svg_path)
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         if self.svg_renderer and self.svg_renderer.isValid():
             painter = QPainter(self)
             self.svg_renderer.render(painter, self.rect())
