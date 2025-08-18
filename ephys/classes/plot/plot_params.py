@@ -9,6 +9,7 @@ to dictionary format for flexible and robust plotting workflows.
 
 from typing import Any
 import numpy as np
+from matplotlib.axes import Axes
 
 
 class PlotParams:
@@ -164,3 +165,36 @@ class PlotParams:
         """Iterate over the plot parameters."""
         for key, value in self.to_dict().items():
             yield key, value
+
+
+def _set_axs_color(params: PlotParams, input_axs: Axes | np.ndarray) -> None:
+    """Set the background and axis color for the given axes."""
+    if isinstance(input_axs, Axes):
+        input_axs.set_facecolor(params.bg_color)
+        input_axs.spines["bottom"].set_color(params.axis_color)
+        input_axs.spines["left"].set_color(params.axis_color)
+        # remove top and right spines
+        input_axs.spines["top"].set_visible(False)
+        input_axs.spines["right"].set_visible(False)
+        input_axs.tick_params(axis="x", colors=params.axis_color)
+        input_axs.tick_params(axis="y", colors=params.axis_color)
+        # title color
+        input_axs.title.set_color(params.axis_color)
+        input_axs.xaxis.label.set_color(params.axis_color)
+        input_axs.yaxis.label.set_color(params.axis_color)
+    elif isinstance(input_axs, np.ndarray):
+        for axs in input_axs:
+            axs.set_facecolor(params.bg_color)
+            axs.spines["bottom"].set_color(params.axis_color)
+            axs.spines["left"].set_color(params.axis_color)
+            # remove top and right spines
+            axs.spines["top"].set_visible(False)
+            axs.spines["right"].set_visible(False)
+            axs.tick_params(axis="x", colors=params.axis_color)
+            axs.tick_params(axis="y", colors=params.axis_color)
+            # title color
+            axs.title.set_color(params.axis_color)
+            axs.xaxis.label.set_color(params.axis_color)
+            axs.yaxis.label.set_color(params.axis_color)
+    else:
+        raise TypeError("channel_axs must be an Axes or np.ndarray of Axes.")
