@@ -547,7 +547,6 @@ class Trace:
                         channel_index
                     ],
                     label=label,
-                    # unit=subset_channels.channel_information.unit[channel_index],
                 )
         if plot:
             output.plot(trace=subset_channels, plot_trace=True)
