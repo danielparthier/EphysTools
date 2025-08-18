@@ -527,3 +527,7 @@ class TracePlotPyQt(TracePlot):
                 else:
                     self.highlight["sweep_index"] = None
                     self.highlight["color"] = QColor()
+
+    def show(self) -> None:
+        """Show the plot window."""
+        self.win.show()
