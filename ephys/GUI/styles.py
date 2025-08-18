@@ -74,6 +74,11 @@ def apply_style(theme: str) -> str:
     QCalendarWidget {{
     background-color: {theme_vars['background_color']};
     color: {theme_vars['color']};
+    selection-background-color: {theme_vars['background_button_pressed']};
+    selection-color: {theme_vars['background_button_hover']};
+    }}
+    QCalendarWidget QWidget {{
+    alternate-background-color: {theme_vars['background_button_pressed']};
     }}
     QCalendarWidget QHeaderView {{
     background-color: {theme_vars['background_button']};
@@ -90,6 +95,14 @@ def apply_style(theme: str) -> str:
     QCalendarWidget QCalendarGridLine::section {{
     background-color: {theme_vars['background_button']};
     color: {theme_vars['color']};
+    }}
+    QCalendarWidget QTableView {{
+    background-color: {theme_vars['background_button']};
+    color: {theme_vars['color']};
+    }}
+    QCalendarWidget QTableView::verticalHeader {{
+    background-color: pink;
+    color: white;
     }}
 
     QLineEdit {{
