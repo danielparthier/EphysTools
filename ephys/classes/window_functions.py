@@ -128,7 +128,7 @@ class FunctionOutput:
         trace_subset = trace.subset(
             channels=channels, signal_type=signal_type, rec_type=rec_type
         )
-        actual_time = deepcopy(trace_subset.time)
+        actual_time = trace_subset.time.copy()
         trace_subset.set_time(
             align_to_zero=True,
             cumulative=False,
@@ -521,6 +521,10 @@ class FunctionOutput:
             plot_output = FunctionOutputMatplotlib(
                 function_output=self, **plot_params.__dict__
             )
+            plot_output.plot(
+                trace=trace,
+                label_filter=label_filter,
+            )
         elif backend == "pyqt":
             # pylint:disable=import-outside-toplevel
             from ephys.classes.plot.plot_window_functions import FunctionOutputPyQt
@@ -533,10 +537,10 @@ class FunctionOutput:
                 f"Unsupported backend: {backend}. Use 'matplotlib' or 'pyqt'."
             )
 
-        plot_output.plot(
-            trace=trace,
-            label_filter=label_filter,
-        )
+        # plot_output.plot(
+        #     trace=trace,
+        #     label_filter=label_filter,
+        # )
 
     def to_dict(self):
         """
