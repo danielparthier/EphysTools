@@ -1,9 +1,11 @@
 from typing import Any
-from plot_params import PlotParams
+from ephys.classes.plot.plot_params import PlotParams, _set_axs_color
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from matplotlib.axes import Axes
 from ephys.classes.action_potentials import ActionPotentials
 import numpy as np
+import pyqtgraph as pg
 
 
 class ActionPotentialsPlot:
@@ -62,11 +64,11 @@ class ActionPotentialsMatplotlib(ActionPotentialsPlot):
             Whether to save the plot. Default is False.
         """
 
-        if not self.action_potentials.action_potentials:
+        if len(self.action_potentials.action_potentials) == 0:
             print("No action potentials detected.")
             return None
 
-        if self.action_potentials.sweep_numbers is None:
+        if len(self.action_potentials.sweep_numbers) == 0:
             print("No sweep numbers available.")
             return None
         if sweep_numbers is None:
@@ -101,6 +103,10 @@ class ActionPotentialsMatplotlib(ActionPotentialsPlot):
             len(channels), 1, figsize=(8, 4 * len(channels)), squeeze=False
         )
         axs = axs.flatten()
+
+        self._set_axs_color(input_axs=axs)
+
+        fig.set_facecolor(self.params.bg_color)
         for idx, ch in enumerate(channels):
             ch_mask = mask & (self.action_potentials.channel == ch)
             ch_action_potentials = self.action_potentials.action_potentials[ch_mask]
@@ -163,3 +169,21 @@ class ActionPotentialsMatplotlib(ActionPotentialsPlot):
             plt.savefig(save_path)
         plt.close(fig)
         return None
+
+    def _set_axs_color(self, input_axs: Axes | np.ndarray) -> None:
+        _set_axs_color(params=self.params, input_axs=input_axs)
+
+
+class ActionPotentialsPyQt(ActionPotentialsPlot):
+    def __init__(self, action_potentials: ActionPotentials, **kwargs: Any) -> None:
+        super().__init__(action_potentials, **kwargs)
+
+    def plot(
+        self,
+        show: bool = True,
+        save: bool = False,
+        save_path: str = "action_potentials.png",
+    ) -> None:
+
+        self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
+        self.win.setBackground(self.params.bg_color)
