@@ -11,12 +11,13 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import matplotlib.colors as mcolors
 import pyqtgraph as pg
+from pyqtgraph.Qt.QtGui import QColor
 import quantities
 
 from ephys.classes.trace import Trace
 from ephys.classes.class_functions import _get_sweep_subset
 from ephys import utils
-from ephys.classes.plot.plot_params import PlotParams
+from ephys.classes.plot.plot_params import PlotParams, _set_axs_color
 
 # switch off antialiasing for pyqtgraph
 # pg.setConfigOptions(antialias=False)
@@ -252,36 +253,7 @@ class TracePlotMatplotlib(TracePlot):
         return None
 
     def _set_axs_color(self, input_axs: Axes | np.ndarray) -> None:
-        """Set the background and axis color for the given axes."""
-        if isinstance(input_axs, Axes):
-            input_axs.set_facecolor(self.params.bg_color)
-            input_axs.spines["bottom"].set_color(self.params.axis_color)
-            input_axs.spines["left"].set_color(self.params.axis_color)
-            # remove top and right spines
-            input_axs.spines["top"].set_visible(False)
-            input_axs.spines["right"].set_visible(False)
-            input_axs.tick_params(axis="x", colors=self.params.axis_color)
-            input_axs.tick_params(axis="y", colors=self.params.axis_color)
-            # title color
-            input_axs.title.set_color(self.params.axis_color)
-            input_axs.xaxis.label.set_color(self.params.axis_color)
-            input_axs.yaxis.label.set_color(self.params.axis_color)
-        elif isinstance(input_axs, np.ndarray):
-            for axs in input_axs:
-                axs.set_facecolor(self.params.bg_color)
-                axs.spines["bottom"].set_color(self.params.axis_color)
-                axs.spines["left"].set_color(self.params.axis_color)
-                # remove top and right spines
-                axs.spines["top"].set_visible(False)
-                axs.spines["right"].set_visible(False)
-                axs.tick_params(axis="x", colors=self.params.axis_color)
-                axs.tick_params(axis="y", colors=self.params.axis_color)
-                # title color
-                axs.title.set_color(self.params.axis_color)
-                axs.xaxis.label.set_color(self.params.axis_color)
-                axs.yaxis.label.set_color(self.params.axis_color)
-        else:
-            raise TypeError("channel_axs must be an Axes or np.ndarray of Axes.")
+        _set_axs_color(params=self.params, input_axs=input_axs)
 
 
 class TracePlotPyQt(TracePlot):
@@ -290,6 +262,10 @@ class TracePlotPyQt(TracePlot):
     def __init__(self, trace: Trace, backend: str = "pyqt", **kwargs) -> None:
         super().__init__(trace=trace, backend=backend, **kwargs)
         self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
+        self.highlight: dict[str, int | None | QColor] = {
+            "sweep_index": None,
+            "color": QColor(),
+        }
 
     def plot(
         self,
@@ -526,3 +502,28 @@ class TracePlotPyQt(TracePlot):
                             color=self.params.color,
                         )
                     )
+
+    def sweep_highlight(self, sweep_index: int | None = None, color="red") -> None:
+        """Highlight the specified sweep in the plot."""
+        for plot_item in self.win.items():
+            if isinstance(plot_item, pg.PlotItem):
+                item_list = plot_item.items
+
+                if isinstance(self.highlight["sweep_index"], int):
+                    item_list[self.highlight["sweep_index"]].setPen(
+                        color=self.highlight["color"]
+                    )
+        for plot_item in self.win.items():
+            if isinstance(plot_item, pg.PlotItem):
+                item_list = plot_item.items
+
+                if isinstance(sweep_index, int):
+                    if sweep_index < len(item_list):
+                        self.highlight["sweep_index"] = sweep_index
+                        self.highlight["color"] = (
+                            item_list[self.highlight["sweep_index"]].opts["pen"].color()
+                        )
+                        item_list[sweep_index].setPen(pg.mkPen(color=color))
+                else:
+                    self.highlight["sweep_index"] = None
+                    self.highlight["color"] = QColor()
