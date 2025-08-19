@@ -285,7 +285,7 @@ class TracePlotPyQt(TracePlot):
             color (str, optional): The color of the individual traces. Can be a colormap.
                 Defaults to 'black'.
             alpha (float, optional): The transparency of the individual traces.
-                Defaults to 0.5.
+                Defaults to 1.
             avg_color (str, optional): The color of the average trace.
                 Defaults to 'red'.
             align_onset (bool, optional): Whether to align the traces on the onset.
@@ -470,6 +470,10 @@ class TracePlotPyQt(TracePlot):
                 for color_val in mcolors.to_rgba(self.params.window_color, alpha=0.8)
             )
         )
+
+        # reset highlights
+        self.highlight["sweep_index"] = None
+        self.highlight["color"] = QColor()
         window_items = self.handle_windows()
         if self.trace.window is not None:
             # Update existing regions with new theme colors
@@ -503,16 +507,24 @@ class TracePlotPyQt(TracePlot):
                         )
                     )
 
-    def sweep_highlight(self, sweep_index: int | None = None, color="red") -> None:
+    def sweep_highlight(
+        self, sweep_index: int | None = None, color="red", alpha=0.4
+    ) -> None:
         """Highlight the specified sweep in the plot."""
         for plot_item in self.win.items():
             if isinstance(plot_item, pg.PlotItem):
                 item_list = plot_item.items
-
                 if isinstance(self.highlight["sweep_index"], int):
                     item_list[self.highlight["sweep_index"]].setPen(
                         color=self.highlight["color"]
                     )
+                    item_list[self.highlight["sweep_index"]].setZValue(0)
+                if alpha < self.params.alpha:
+                    local_alpha = alpha
+                    if sweep_index is None:
+                        local_alpha = self.params.alpha
+                    for sweep in item_list:
+                        sweep.setAlpha(local_alpha, True)
         for plot_item in self.win.items():
             if isinstance(plot_item, pg.PlotItem):
                 item_list = plot_item.items
@@ -523,7 +535,9 @@ class TracePlotPyQt(TracePlot):
                         self.highlight["color"] = (
                             item_list[self.highlight["sweep_index"]].opts["pen"].color()
                         )
-                        item_list[sweep_index].setPen(pg.mkPen(color=color))
+                        item_list[sweep_index].setPen(pg.mkPen(color=color, width=2))
+                        item_list[sweep_index].setAlpha(1.0, True)
+                        item_list[sweep_index].setZValue(1)
                 else:
                     self.highlight["sweep_index"] = None
                     self.highlight["color"] = QColor()
