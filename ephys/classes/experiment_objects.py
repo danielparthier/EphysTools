@@ -276,9 +276,11 @@ class MetaData:
         files_exist = [
             entry["file_name"] for entry in self.file_info if isinstance(entry, dict)
         ]
-        self.file_info = self.file_info[
-            utils.string_match(files_to_remove, files_exist)
-        ]
+        keep_indices = np.invert(np.isin(files_exist, files_to_remove))
+
+        self.file_info = self.file_info[keep_indices]
+        self.experiment_info = self.experiment_info[keep_indices]
+        self.subject_info = self.subject_info[keep_indices]
 
     def to_dict(self) -> dict:
         """
@@ -292,6 +294,24 @@ class MetaData:
             "experiment_info": self.experiment_info,
             "subject_info": self.subject_info,
         }
+
+    def get_file_path(self) -> list[str]:
+        """
+        Retrieves the file path(s) from the MetaData object.
+
+        Returns:
+            list[str]: The file path(s) stored in the MetaData object.
+        """
+        return [file["file_name"] for file in self.file_info]
+
+    def get_file_name(self) -> list[str]:
+        """
+        Retrieves the file name(s) from the MetaData object.
+
+        Returns:
+            list[str]: The file name(s) stored in the MetaData object.
+        """
+        return [file["file_name"] for file in self.file_info]
 
 
 class ExpData:
