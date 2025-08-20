@@ -92,7 +92,7 @@ class TracePlotWindow(QWidget):
         """Add a trace plot widget to the plot area."""
         trace_plot: None | TracePlotPyQt | tuple[Figure, Axes] = trace.plot(
             backend="pyqt",
-            alpha=0.5,
+            alpha=1,
             color="viridis",
             show=False,
             return_fig=True,
