@@ -412,6 +412,8 @@ class FunctionOutput:
             return None
         label_index_1 = np.where(self.label == labels[0])
         label_index_2 = np.where(self.label == labels[1])
+        if time_label == "":
+            time_label = labels[0]
         time_label_index = np.where(self.label == time_label)
         diff = self.measurements[label_index_1] - self.measurements[label_index_2]
         self.function = np.append(self.function, np.repeat("diff", len(diff)))
@@ -427,6 +429,7 @@ class FunctionOutput:
         self.label = np.append(
             self.label, np.repeat(new_name, len(time_label_index[0]))
         )
+        self.unit = np.append(self.unit, self.unit[time_label_index])
         self.time = np.append(self.time, self.time[time_label_index])
         return None
 
