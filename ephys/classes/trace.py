@@ -480,7 +480,7 @@ class Trace:
 
     def window_function(
         self,
-        window: list | None = None,
+        window: list | tuple | None = None,
         channels: Any = None,
         signal_type: Any = None,
         rec_type: str = "",
@@ -518,11 +518,19 @@ class Trace:
 
         if window is None:
             window = [(0, 0)]
+        if (
+            isinstance(window, tuple)
+            and len(window) == 2
+            and all(isinstance(x, (int, float)) for x in window)
+        ):
+            window = [window]
         if function not in ["mean", "median", "max", "min", "min_avg"]:
             print("Function not supported")
             return None
-        if not isinstance(window, list):
-            window = [window]
+        if not isinstance(window, list) and not all(
+            isinstance(w, tuple) and len(w) == 2 for w in window
+        ):
+            raise TypeError("Window must be a list of tuples (start, end).")
         sweep_subset = _get_sweep_subset(self.time, sweep_subset)
         subset_channels: Trace = self.subset(
             channels=channels,
