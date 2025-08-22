@@ -376,16 +376,17 @@ class FunctionOutput:
         self.trace = window_summary.trace
 
         if remove_duplicates:
-            np.unique(self.measurements)
-            self.measurements = np.unique(self.measurements)
-            self.location = np.unique(self.location)
-            self.sweep = np.unique(self.sweep)
-            self.window = np.unique(self.window)
-            self.signal_type = np.unique(self.signal_type)
-            self.channel = np.unique(self.channel)
-            self.label = np.unique(self.label)
-            self.function = np.unique(self.function)
-            self.unit = np.unique(self.unit)
+            df = self.to_dataframe()
+            df.drop_duplicates(inplace=True)
+            self.measurements = df.measurements.values.astype(self.measurements.dtype)
+            self.location = df.location.values.astype(self.location.dtype)
+            self.sweep = df.sweep.values.astype(self.sweep.dtype)
+            self.window = df.window.values.astype(self.window.dtype)
+            self.signal_type = df.signal_type.values.astype(self.signal_type.dtype)
+            self.channel = df.channel.values.astype(self.channel.dtype)
+            self.label = df.label.values.astype(self.label.dtype)
+            self.function = df.function.values.astype(self.function.dtype)
+            self.unit = df.unit.values.astype(self.unit.dtype)
 
     def label_diff(
         self, labels: list | None = None, new_name: str = "", time_label: str = ""
