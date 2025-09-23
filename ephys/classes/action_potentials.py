@@ -17,6 +17,9 @@ import pandas as pd
 if TYPE_CHECKING:
     from ephys.classes.events import Events
     from ephys.classes.voltage import VoltageTrace
+    from ephys.classes.plot.plot_action_potentials import (
+        ActionPotentialsPyQt,
+    )
 
 
 def _ap_extract(
@@ -372,11 +375,11 @@ class ActionPotentials:
         save: bool = False,
         sweep_numbers: np.ndarray | list | int | None = None,
         align_threshold: bool = True,
-        threshold: bool = False,
+        threshold: bool = True,
         save_path: str = "action_potentials.png",
         backend: str = "matplotlib",
         **kwargs: Any,
-    ) -> None:
+    ) -> None | ActionPotentialsPyQt:
         """
         Plot the action potentials.
         Args:
@@ -398,18 +401,27 @@ class ActionPotentials:
                 save_path=save_path,
                 show=show,
                 save=save,
+                **kwargs,
             )
-        elif backend == "pyqtgraph":
+        elif backend == "pyqt":
             from ephys.classes.plot.plot_action_potentials import (
                 ActionPotentialsPyQt,
             )
 
             plot = ActionPotentialsPyQt(action_potentials=self)
+
             plot.plot(
+                sweep_numbers=sweep_numbers,
+                align_threshold=align_threshold,
+                threshold=threshold,
+                save_path=save_path,
                 show=show,
                 save=save,
-                save_path=save_path,
+                **kwargs,
             )
+            if plot.ap_checks(sweep_numbers=sweep_numbers) is None:
+                return None
+            return plot
 
     def to_dict(self) -> dict | None:
         """
