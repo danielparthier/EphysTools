@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import Any, TYPE_CHECKING
 import numpy as np
 import pandas as pd
+from pyqtgraph.widgets.GraphicsLayoutWidget import GraphicsLayoutWidget
 from quantities import Quantity
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -21,6 +22,10 @@ from ephys.classes.class_functions import _get_time_index
 
 if TYPE_CHECKING:
     from ephys.classes.trace import Trace
+    from ephys.classes.plot.plot_window_functions import (
+        FunctionOutputMatplotlib,
+        FunctionOutputPyQt,
+    )
 
 
 class FunctionOutput:
@@ -480,7 +485,7 @@ class FunctionOutput:
         label_filter: list | str | None = None,
         backend: str = "matplotlib",  # remove default after setting up pyqt
         **kwargs,
-    ) -> None | tuple[Figure, Axes | np.ndarray] | None:
+    ) -> None | FunctionOutputMatplotlib | FunctionOutputPyQt:
         """
         Plot the trace and/or summary measurements.
 
@@ -509,11 +514,10 @@ class FunctionOutput:
         plot_params = PlotParams()
         plot_params.update_params(**kwargs)
         if plot_trace:
-            if trace is not None:
-                if trace is None:
-                    trace = self.trace
-                if not isinstance(trace, Trace):
-                    raise TypeError("trace must be an instance of Trace.")
+            if trace is None:
+                trace = self.trace
+            if not isinstance(trace, Trace):
+                raise TypeError("trace must be an instance of Trace.")
         else:
             trace = None
         if backend == "matplotlib":
@@ -522,29 +526,23 @@ class FunctionOutput:
                 FunctionOutputMatplotlib,
             )
 
-            plot_output = FunctionOutputMatplotlib(
+            plot_out = FunctionOutputMatplotlib(
                 function_output=self, **plot_params.__dict__
             )
-            plot_output.plot(
-                trace=trace,
-                label_filter=label_filter,
-            )
+            plot_out.plot(trace=trace, label_filter=label_filter)
         elif backend == "pyqt":
             # pylint:disable=import-outside-toplevel
             from ephys.classes.plot.plot_window_functions import FunctionOutputPyQt
 
-            plot_output = FunctionOutputPyQt(
-                function_output=self, **plot_params.__dict__
-            )
+            plot_out = FunctionOutputPyQt(function_output=self, **plot_params.__dict__)
+            plot_out.plot(trace=trace, label_filter=label_filter)
+            if plot_params.show:
+                plot_out.show()
+            return plot_out
         else:
             raise ValueError(
                 f"Unsupported backend: {backend}. Use 'matplotlib' or 'pyqt'."
             )
-
-        # plot_output.plot(
-        #     trace=trace,
-        #     label_filter=label_filter,
-        # )
 
     def to_dict(self):
         """
@@ -617,3 +615,24 @@ class FunctionOutput:
             self.time = np.delete(self.time, label_index)
             self.unit = np.delete(self.unit, label_index)
         return None
+
+    def from_dataframe(self, df: pd.DataFrame) -> None:
+        """
+        Populate the FunctionOutput object from a pandas DataFrame.
+
+        Args:
+            df (pandas.DataFrame): A DataFrame containing the function output attributes.
+
+        Returns:
+            None
+        """
+        self.function = df["function"].to_numpy().astype(str)
+        self.measurements = df["measurements"].to_numpy()
+        self.location = df["location"].to_numpy()
+        self.sweep = df["sweep"].to_numpy()
+        self.window = np.array(df["window"].tolist())
+        self.signal_type = df["signal_type"].to_numpy().astype(str)
+        self.channel = df["channel"].to_numpy()
+        self.label = df["label"].to_numpy().astype(str)
+        self.unit = df["unit"].to_numpy().astype(str)
+        self.time = df["time"].to_numpy()
