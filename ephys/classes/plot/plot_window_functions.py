@@ -13,20 +13,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+import pyqtgraph as pg
+import pandas as pd
 
 from ephys import utils
 from ephys.classes.plot.plot_params import PlotParams
+
 from ephys.classes.class_functions import moving_average
 
 if TYPE_CHECKING:
     from ephys.classes.window_functions import FunctionOutput
+    from ephys.classes.plot.plot_trace import TracePlotPyQt
     from ephys.classes.trace import Trace
 
 
 class FunctionOutputPlot:
     """Class for plotting traces and summary measurements with matplotlib."""
 
-    def __init__(self, function_output: FunctionOutput, **kwargs: Any) -> None:
+    def __init__(
+        self, function_output: FunctionOutput, trace: Trace | None = None, **kwargs: Any
+    ) -> None:
         """
         Initializes the FunctionOutputPlot class with function_output and
         additional arguments.
@@ -58,9 +64,10 @@ class FunctionOutputPyQt(FunctionOutputPlot):
 
     def plot(
         self,
+        trace: Trace | None = None,
         label_filter: list | str | None = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> FunctionOutputPyQt | None:
         """
         Plots the trace and/or summary measurements.
 
@@ -71,16 +78,112 @@ class FunctionOutputPyQt(FunctionOutputPlot):
         Returns:
             None
         """
-        # TODO: build PyQtGraph plot
-        if kwargs:
-            self.params.update_params(**kwargs)
+        from ephys.classes.trace import Trace
+
+        self.params.update_params(**kwargs)
+
+        align_onset: bool = self.params.__dict__.get("align_onset", True)
+        show: bool = self.params.__dict__.get("show", True)
+        trace_channels: list[pg.PlotItem] | None = None
+        # trace = self.function_output.trace
         if self.function_output.measurements.size == 0:
             print("No measurements to plot")
             return None
+        window_groups = self.function_output.to_dataframe().groupby(["unit", "channel"])
+        channel_plot_dict: dict[str, pg.PlotItem] = {}
+        self.win = pg.GraphicsLayoutWidget(show=show, title="Summary Plot")
 
         if label_filter is None:
             label_filter = []
-        return None
+        if isinstance(trace, Trace):
+            from ephys.classes.plot.plot_trace import TracePlotPyQt
+
+            trace_select: Trace = trace.subset(
+                channels=self.function_output.channel,
+                signal_type=self.function_output.signal_type,
+            )
+            trace_plot_params = deepcopy(self.params.__dict__)
+            trace_plot_params["show"] = False
+            trace_plot_params["return_fig"] = True
+            trace_plot = trace_select.plot(backend="pyqt", **trace_plot_params)
+            if isinstance(trace_plot, TracePlotPyQt):
+                x_range = trace_plot.params.xlim
+                trace_channels = [
+                    item
+                    for item in trace_plot.win.items()
+                    if isinstance(item, pg.PlotItem)
+                ]
+                self.win: pg.GraphicsLayoutWidget = trace_plot.win
+                channel_plot_dict = {
+                    channel.getAxis("left").labelText: channel
+                    for channel in trace_channels
+                }
+        self.win.setBackground(self.params.bg_color)
+
+        channel_0: pg.PlotItem | None = None
+        from ephys.classes.class_functions import moving_average
+
+        if self.params.align_onset:
+            x_axis = self.function_output.location
+        else:
+            if trace is not None:
+                x_axis = self.function_output.location + np.array(
+                    [
+                        trace.time[int(sweep - 1), 0]
+                        for sweep in self.function_output.sweep
+                    ]
+                )
+            else:
+                x_axis = self.function_output.time
+            x_range = (np.min(x_axis), np.max(x_axis))
+        for channel_index, ((unit, channel), group) in enumerate(window_groups):
+            if isinstance(trace_channels, list):
+                channel_plot = channel_plot_dict[f"Channel {int(channel)} " f"({unit})"]
+            else:
+                channel_plot: pg.PlotItem = self.win.addPlot(row=channel_index, col=0)  # type: ignore
+            if channel_index == 0:
+                channel_0 = channel_plot
+                channel_plot.addLegend()
+            channel_plot.setXLink(channel_0)  # type: ignore
+            channel_box = channel_plot.getViewBox()
+            channel_box.setXRange(x_range[0], x_range[1])  # type: ignore
+            subgroups = group.groupby("label")
+            label_count = len(subgroups)
+            for i, (label, subgroup) in enumerate(subgroups):
+                label_colors = utils.color_picker_qcolor(
+                    length=label_count, index=i, color="gist_rainbow", alpha=0.5
+                )
+                if not align_onset:
+                    y_smooth = moving_average(
+                        subgroup["measurements"].to_numpy(),
+                        subgroup.index.size // 10,
+                    )
+                    channel_plot.plot(
+                        x_axis[subgroup.index],
+                        y_smooth,
+                        pen=label_colors,
+                        alpha=0.4,
+                        width=2.0,
+                    )
+                channel_plot.setLabel("left", f"Channel {int(channel)} " f"({unit})")
+                channel_plot.scatterPlot(
+                    x_axis[subgroup.index],
+                    subgroup["measurements"].values,
+                    pen=label_colors,
+                    symbol="o",
+                    symbolSize=10,
+                    symbolPen="w",
+                    symbolBrush=label_colors,
+                    name=f"{label}",
+                )
+        if show:
+            self.show()
+        return self
+
+    def show(self) -> pg.GraphicsLayoutWidget | None:
+        if self.win is not None:
+            self.win.show()
+            return self.win
 
 
 class FunctionOutputMatplotlib(FunctionOutputPlot):
@@ -157,7 +260,7 @@ class FunctionOutputMatplotlib(FunctionOutputPlot):
         channel_count = np.unique(self.function_output.channel).size
         unique_labels = np.unique(self.function_output.label)
         if align_onset:
-            x_axis = self.function_output.location
+            x_axis = self.function_output.location.copy()
         else:
             if trace is not None:
                 x_axis = self.function_output.location + np.array(
@@ -167,7 +270,7 @@ class FunctionOutputMatplotlib(FunctionOutputPlot):
                     ]
                 )
             else:
-                x_axis = self.function_output.time
+                x_axis = self.function_output.time.copy()
         for color_index, label in enumerate(unique_labels):
             # add section to plot on channel by channel basis
             for channel_index, channel_number in enumerate(
