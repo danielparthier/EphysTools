@@ -36,6 +36,10 @@ from ephys.classes.class_functions import (
     abf_trace,
 )  # pylint: disable=import-outside-toplevel
 from ephys.classes.channels import ChannelInformation
+from ephys.classes.plot.plot_window_functions import (
+    FunctionOutputMatplotlib,
+    FunctionOutputPyQt,
+)
 from ephys.classes.window_functions import FunctionOutput
 
 if TYPE_CHECKING:
@@ -658,7 +662,7 @@ class Trace:
         align_onset: bool = True,
         label_filter: list | str | None = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> None | FunctionOutputPyQt | FunctionOutputMatplotlib:
         """
         Plot a summary of the experiment data.
 
@@ -678,12 +682,19 @@ class Trace:
         if label_filter == "" or label_filter is None:
             label_filter = []
         if self.window_summary is not None:
-            self.window_summary.plot(
-                trace=self,
-                align_onset=align_onset,
-                label_filter=label_filter,
-                plot_trace=plot_trace,
-                **kwargs,
+            plot_out: None | FunctionOutputMatplotlib | FunctionOutputPyQt = (
+                self.window_summary.plot(
+                    trace=self,
+                    align_onset=align_onset,
+                    label_filter=label_filter,
+                    plot_trace=plot_trace,
+                    **kwargs,
+                )
             )
+            if plot_out is None:
+                print("No plot output generated")
+
+            # plot_out.show()
+            return plot_out
         else:
             print("No summary data found")

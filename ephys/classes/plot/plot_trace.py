@@ -9,15 +9,18 @@ from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib import colormaps
 import matplotlib.colors as mcolors
 import pyqtgraph as pg
 from pyqtgraph.Qt.QtGui import QColor
 import quantities
 
 from ephys.classes.trace import Trace
+from ephys.classes.plot.CurveArray import CurveArray, HighlightCurve, TraceCurve
 from ephys.classes.class_functions import _get_sweep_subset
 from ephys import utils
 from ephys.classes.plot.plot_params import PlotParams, _set_axs_color
+
 
 # switch off antialiasing for pyqtgraph
 # pg.setConfigOptions(antialias=False)
@@ -266,6 +269,10 @@ class TracePlotPyQt(TracePlot):
             "sweep_index": None,
             "color": QColor(),
         }
+        self.highlight_trace = []
+        self.highlight_trace_dict = {"channel": None, "sweep": None}
+        self.flat_sweep_index_start = np.array([])
+        self.flat_sweep_index_end = np.array([])
 
     def plot(
         self,
@@ -376,6 +383,7 @@ class TracePlotPyQt(TracePlot):
 
         region: pg.LinearRegionItem | None = None
         channel_0: pg.PlotItem | None = None
+
         for channel_index, channel in enumerate(trace_select.channel):
             channel_tmp = self.win.addPlot(row=channel_index, col=0)  # type: ignore
             if channel_index == 0:
@@ -399,21 +407,50 @@ class TracePlotPyQt(TracePlot):
             channel_box = channel_tmp.getViewBox()
             channel_box.setXRange(self.params.xlim[0], self.params.xlim[1])
 
-            for i in range(channel.data.shape[0]):
-                qt_color = utils.color_picker_qcolor(
-                    length=channel.data.shape[0],
-                    index=i,
+            if self.params.color in colormaps.keys():
+                for i in range(channel.data.shape[0]):
+                    qt_color = utils.color_picker_qcolor(
+                        length=channel.data.shape[0],
+                        index=i,
+                        color=self.params.color,
+                        alpha=self.params.alpha,
+                    )
+                    sweep_plot = TraceCurve(
+                        pen=pg.mkPen(
+                            color=qt_color,
+                            width=self.params.line_width,
+                        )
+                    )
+                    sweep_plot.add_sweep_data(
+                        x=time_array[i],
+                        y=channel.data[i],
+                        sweep_index=i,
+                    )
+                    channel_tmp.addItem(sweep_plot)
+            else:
+                curve_array = CurveArray(
+                    x=time_array.magnitude, y=channel.data.magnitude
+                )
+                self.flat_sweep_index_start = curve_array.start_index
+                self.flat_sweep_index_end = curve_array.end_index
+                print("here")
+                print(self.params.alpha)
+                color = utils.color_picker_qcolor(
+                    length=1,
+                    index=0,
                     color=self.params.color,
                     alpha=self.params.alpha,
                 )
-                channel_tmp.plot(
-                    time_array[i],
-                    channel.data[i],
+                sweep_plot = TraceCurve(
                     pen=pg.mkPen(
-                        color=qt_color,
+                        color=color,
                         width=self.params.line_width,
                     ),
+                    connect="finite",
                 )
+                sweep_plot.add_compressed_data(data=curve_array)
+
+                channel_tmp.addItem(sweep_plot)
             if windows_to_display != [(0, 0)]:
                 for win_index, win_item in enumerate(window_items):
                     if isinstance(window_items, list) and len(window_items) > 0:
@@ -444,13 +481,16 @@ class TracePlotPyQt(TracePlot):
 
             if self.params.average:
                 channel.channel_average(sweep_subset=self.params.sweep_subset)
-                channel_tmp.plot(
+                average_sweep = pg.PlotCurveItem(
+                    pen=pg.mkPen(color=self.params.avg_color, width=2)
+                )
+                average_sweep.setData(
                     time_array[0, :],
                     channel.average.trace,
-                    pen=pg.mkPen(color=self.params.avg_color, width=2),
+                    skipFiniteCheck=True,
+                    antialias=False,
                 )
-
-    # return self.win
+                channel_tmp.addItem(average_sweep)
 
     def update_theme(self, theme: str, **kwargs) -> None:
         """Update the theme of the plot."""
@@ -508,39 +548,38 @@ class TracePlotPyQt(TracePlot):
                     )
 
     def sweep_highlight(
-        self, sweep_index: int | None = None, color="red", alpha=0.4
+        self, sweep_index: int | None = None, color="red", alpha=0.4, width=2
     ) -> None:
-        """Highlight the specified sweep in the plot."""
-        for plot_item in self.win.items():
-            if isinstance(plot_item, pg.PlotItem):
-                item_list = plot_item.items
-                if isinstance(self.highlight["sweep_index"], int):
-                    item_list[self.highlight["sweep_index"]].setPen(
-                        color=self.highlight["color"]
-                    )
-                    item_list[self.highlight["sweep_index"]].setZValue(0)
-                if alpha < self.params.alpha:
-                    local_alpha = alpha
-                    if sweep_index is None:
-                        local_alpha = self.params.alpha
-                    for sweep in item_list:
-                        sweep.setAlpha(local_alpha, True)
-        for plot_item in self.win.items():
-            if isinstance(plot_item, pg.PlotItem):
-                item_list = plot_item.items
-
-                if isinstance(sweep_index, int):
-                    if sweep_index < len(item_list):
-                        self.highlight["sweep_index"] = sweep_index
-                        self.highlight["color"] = (
-                            item_list[self.highlight["sweep_index"]].opts["pen"].color()
+        highlight_exists = False
+        for item in self.win.items():
+            if isinstance(item, pg.PlotItem):
+                item_list = item.items
+                for sweep in item_list:
+                    if isinstance(sweep, HighlightCurve):
+                        sweep.update_data(
+                            sweep_index=sweep_index,
                         )
-                        item_list[sweep_index].setPen(pg.mkPen(color=color, width=2))
-                        item_list[sweep_index].setAlpha(1.0, True)
-                        item_list[sweep_index].setZValue(1)
-                else:
-                    self.highlight["sweep_index"] = None
-                    self.highlight["color"] = QColor()
+                        sweep.setPen(
+                            pg.mkPen(color=color, alpha=alpha, width=width),
+                        )
+                        if sweep.sweep_index is None:
+                            highlight_exists = False
+                        else:
+                            highlight_exists = True
+        if not highlight_exists and isinstance(sweep_index, int):
+            for item in self.win.items():
+                if isinstance(item, pg.PlotItem):
+                    item_list = item.items
+                    for sweep in item_list:
+                        if isinstance(sweep, TraceCurve):
+                            new_highlight: HighlightCurve | None = (
+                                sweep.return_sweep_highlight(
+                                    sweep_index=sweep_index,
+                                    pen=pg.mkPen(color, alpha=alpha, width=width),
+                                )
+                            )
+                            if new_highlight is not None:
+                                item.addItem(new_highlight)
 
     def show(self) -> None:
         """Show the plot window."""
