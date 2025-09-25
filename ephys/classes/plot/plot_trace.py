@@ -433,8 +433,6 @@ class TracePlotPyQt(TracePlot):
                 )
                 self.flat_sweep_index_start = curve_array.start_index
                 self.flat_sweep_index_end = curve_array.end_index
-                print("here")
-                print(self.params.alpha)
                 color = utils.color_picker_qcolor(
                     length=1,
                     index=0,
@@ -548,9 +546,23 @@ class TracePlotPyQt(TracePlot):
                     )
 
     def sweep_highlight(
-        self, sweep_index: int | None = None, color="red", alpha=0.4, width=2
+        self, sweep_index: int | None = None, color="red", alpha=1, width=2
     ) -> None:
         highlight_exists = False
+        if self.params.alpha != 0.1:
+            for plot_item in self.win.items():
+                if isinstance(plot_item, pg.PlotItem):
+                    item_list = plot_item.listDataItems()
+                    for i, curve in enumerate(item_list):
+                        if curve.opts["pen"].color().alphaF() != 0.1:
+                            curve.setPen(
+                                color=utils.color_picker_qcolor(
+                                    length=len(item_list),
+                                    index=i,
+                                    alpha=0.1,
+                                    color=self.params.color,
+                                )
+                            )
         for item in self.win.items():
             if isinstance(item, pg.PlotItem):
                 item_list = item.items
@@ -580,6 +592,20 @@ class TracePlotPyQt(TracePlot):
                             )
                             if new_highlight is not None:
                                 item.addItem(new_highlight)
+                                highlight_exists = True
+        if not highlight_exists:
+            for plot_item in self.win.items():
+                if isinstance(plot_item, pg.PlotItem):
+                    item_list = plot_item.listDataItems()
+                    for i, curve in enumerate(item_list):
+                        curve.setPen(
+                            color=utils.color_picker_qcolor(
+                                length=len(item_list),
+                                index=i,
+                                alpha=self.params.alpha,
+                                color=self.params.color,
+                            )
+                        )
 
     def show(self) -> None:
         """Show the plot window."""
