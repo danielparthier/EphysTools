@@ -4,6 +4,7 @@ This module provides classes for representing experimental data and metadata.
 
 import os
 import struct
+from typing import Any
 
 from datetime import datetime, timedelta
 import matplotlib.style as mplstyle
@@ -366,9 +367,16 @@ class ExpData:
         """
         if isinstance(file_path, str):
             file_path = [file_path]
-        for file in file_path:
+
+        # Check for duplicates
+        existing_file_path = self.meta_data.get_file_path()
+        new_files = np.array(file_path)[
+            np.invert(np.isin(file_path, existing_file_path))
+        ].tolist()
+
+        for file in new_files:
             self.protocols.append(Trace(file))
-        self.meta_data.add_file_info(file_path, experimenter)
+        self.meta_data.add_file_info(new_files, experimenter)
         if sort:
             self.sort_by_date()
 
@@ -424,6 +432,92 @@ class ExpData:
         if to_dataframe:
             return pd.DataFrame(summary_dict)
         return summary_dict
+
+    def get_window_summary(self, remove_duplicates: bool = True) -> pd.DataFrame:
+        """
+        Returns a summary of the window information for each protocol.
+        """
+        pd_collection = []
+        meta_df = self.meta_data_summary()
+        exp_start = np.array(
+            [
+                protocol.rec_datetime.timestamp()
+                for protocol in self.protocols
+                if protocol.rec_datetime is not None
+            ]
+        ).min()
+        for i, protocol in enumerate(self.protocols):
+            protocol: Trace
+            df = protocol.window_summary.to_dataframe()
+            df["file_name"] = meta_df["file_name"][i]
+            if protocol.rec_datetime is not None:
+                df["exp_time"] = (
+                    df["time"] + protocol.rec_datetime.timestamp() - exp_start
+                )
+            df["protocol"] = protocol
+            pd_collection.append(df)
+        df_out = pd.concat(pd_collection, ignore_index=True)
+        if remove_duplicates:
+            df_out.drop_duplicates(inplace=True)
+        return df_out
+
+    def window_function(
+        self,
+        window: list | tuple | None = None,
+        channels: Any = None,
+        signal_type: Any = None,
+        rec_type: str = "",
+        function: str = "mean",
+        label: str = "",
+        sweep_subset: Any = None,
+        return_output: bool = False,
+        plot_individual: bool = False,
+    ) -> None:
+        for protocol in self.protocols:
+            protocol: Trace
+            protocol.window_function(
+                window=window,
+                channels=channels,
+                signal_type=signal_type,
+                rec_type=rec_type,
+                function=function,
+                label=label,
+                sweep_subset=sweep_subset,
+                return_output=return_output,
+                plot=plot_individual,
+            )
+
+    def label_diff(
+        self, labels: list | None = None, new_name: str = "", time_label: str = ""
+    ) -> None:
+        for protocol in self.protocols:
+            protocol: Trace
+            protocol.window_summary.label_diff(
+                labels=labels, new_name=new_name, time_label=time_label
+            )
+
+    def label_ratio(
+        self, labels: list | None = None, new_name: str = "", time_label: str = ""
+    ) -> None:
+        for protocol in self.protocols:
+            protocol: Trace
+            protocol.window_summary.label_ratio(
+                labels=labels, new_name=new_name, time_label=time_label
+            )
+
+    def plot_summary(
+        self,
+        align_onset: bool = False,
+        **kwargs,
+    ) -> None:
+        from ephys.classes.window_functions import FunctionOutput
+
+        df_complete: pd.DataFrame = self.get_window_summary()
+        summary_output = FunctionOutput()
+        df_complete = df_complete.drop(columns=["time"], errors="ignore")
+        df_complete = df_complete.rename(columns={"exp_time": "time"})
+        summary_output.from_dataframe(df=df_complete)
+        summary_output.plot(plot_trace=False, align_onset=align_onset, **kwargs)
 
     # TODO: get summary outputs for the experiment
     # TODO: get summary plots for the experiment
