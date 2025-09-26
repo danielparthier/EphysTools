@@ -265,12 +265,6 @@ class TracePlotPyQt(TracePlot):
     def __init__(self, trace: Trace, backend: str = "pyqt", **kwargs) -> None:
         super().__init__(trace=trace, backend=backend, **kwargs)
         self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
-        self.highlight: dict[str, int | None | QColor] = {
-            "sweep_index": None,
-            "color": QColor(),
-        }
-        self.highlight_trace = []
-        self.highlight_trace_dict = {"channel": None, "sweep": None}
         self.flat_sweep_index_start = np.array([])
         self.flat_sweep_index_end = np.array([])
 
@@ -509,9 +503,6 @@ class TracePlotPyQt(TracePlot):
             )
         )
 
-        # reset highlights
-        self.highlight["sweep_index"] = None
-        self.highlight["color"] = QColor()
         window_items = self.handle_windows()
         if self.trace.window is not None:
             # Update existing regions with new theme colors
@@ -534,79 +525,89 @@ class TracePlotPyQt(TracePlot):
                     color=self.params.axis_color,
                     text=plot_item.getAxis("bottom").labelText,
                 )
-                item_list = plot_item.listDataItems()
-                for i, curve in enumerate(item_list):
-                    curve.setPen(
-                        color=utils.color_picker_qcolor(
-                            length=len(item_list),
-                            index=i,
-                            alpha=self.params.alpha,
-                            color=self.params.color,
-                        )
-                    )
+                self._set_curve_pen(plot_item.listDataItems())
 
     def sweep_highlight(
         self, sweep_index: int | None = None, color="red", alpha=1, width=2
     ) -> None:
+        """
+        Highlights a specific sweep in the plot by adjusting the pen properties of the curves.
+        This method dims all existing curves to a specified alpha value (default 0.1) and highlights
+        the selected sweep by changing its color, alpha, and width. If a highlight curve for the
+        specified sweep index already exists, it updates its data and pen. Otherwise, it creates a new
+        highlight curve for the given sweep index. If no sweep is highlighted, it restores the original
+        alpha values and removes any highlight curves.
+        Args:
+            sweep_index (int | None): The index of the sweep to highlight. If None, removes highlight.
+            color (str, optional): The color to use for highlighting. Defaults to "red".
+            alpha (float, optional): The alpha (transparency) value for the highlight. Defaults to 1.
+            width (int, optional): The width of the highlight pen. Defaults to 2.
+        Returns:
+            None
+        """
+
+        pen_opts = pg.mkPen(color=color, alpha=alpha, width=width)
+        plot_items = [
+            plot_item
+            for plot_item in self.win.items()
+            if isinstance(plot_item, pg.PlotItem)
+        ]
+
         highlight_exists = False
         if self.params.alpha != 0.1:
-            for plot_item in self.win.items():
-                if isinstance(plot_item, pg.PlotItem):
-                    item_list = plot_item.listDataItems()
-                    for i, curve in enumerate(item_list):
-                        if curve.opts["pen"].color().alphaF() != 0.1:
-                            curve.setPen(
-                                color=utils.color_picker_qcolor(
-                                    length=len(item_list),
-                                    index=i,
-                                    alpha=0.1,
-                                    color=self.params.color,
-                                )
+            for plot_item in plot_items:
+                self._set_curve_pen(plot_item.listDataItems(), alpha=0.1)
+
+        for plot_item in plot_items:
+            for sweep in plot_item.listDataItems():
+                if isinstance(sweep, HighlightCurve):
+                    sweep.update_data(
+                        sweep_index=sweep_index,
+                    )
+                    sweep.setPen(
+                        pen=pen_opts,
+                    )
+                    highlight_exists = sweep.sweep_index is not None
+
+        if not highlight_exists and isinstance(sweep_index, int):
+            for plot_item in plot_items:
+                for sweep in plot_item.listDataItems():
+                    if isinstance(sweep, TraceCurve):
+                        new_highlight: HighlightCurve | None = (
+                            sweep.return_sweep_highlight(
+                                sweep_index=sweep_index,
+                                pen=pen_opts,
                             )
-        for item in self.win.items():
-            if isinstance(item, pg.PlotItem):
-                item_list = item.items
+                        )
+                        if new_highlight is not None:
+                            plot_item.addItem(new_highlight)
+                            highlight_exists = True
+
+        if not highlight_exists:
+            for plot_item in plot_items:
+                item_list = plot_item.listDataItems()
+                self._set_curve_pen(item_list, alpha=self.params.alpha)
                 for sweep in item_list:
                     if isinstance(sweep, HighlightCurve):
-                        sweep.update_data(
-                            sweep_index=sweep_index,
-                        )
-                        sweep.setPen(
-                            pg.mkPen(color=color, alpha=alpha, width=width),
-                        )
-                        if sweep.sweep_index is None:
-                            highlight_exists = False
-                        else:
-                            highlight_exists = True
-        if not highlight_exists and isinstance(sweep_index, int):
-            for item in self.win.items():
-                if isinstance(item, pg.PlotItem):
-                    item_list = item.items
-                    for sweep in item_list:
-                        if isinstance(sweep, TraceCurve):
-                            new_highlight: HighlightCurve | None = (
-                                sweep.return_sweep_highlight(
-                                    sweep_index=sweep_index,
-                                    pen=pg.mkPen(color, alpha=alpha, width=width),
-                                )
-                            )
-                            if new_highlight is not None:
-                                item.addItem(new_highlight)
-                                highlight_exists = True
-        if not highlight_exists:
-            for plot_item in self.win.items():
-                if isinstance(plot_item, pg.PlotItem):
-                    item_list = plot_item.listDataItems()
-                    for i, curve in enumerate(item_list):
-                        curve.setPen(
-                            color=utils.color_picker_qcolor(
-                                length=len(item_list),
-                                index=i,
-                                alpha=self.params.alpha,
-                                color=self.params.color,
-                            )
-                        )
+                        plot_item.removeItem(sweep)
+
+    def remove_highlight(self) -> None:
+        self.sweep_highlight(sweep_index=None)
 
     def show(self) -> None:
         """Show the plot window."""
         self.win.show()
+
+    def _set_curve_pen(self, curves, alpha=None) -> None:
+        if alpha is None:
+            alpha = self.params.alpha
+        for i, curve in enumerate(curves):
+            if curve.opts["pen"].color().alphaF() != alpha:
+                curve.setPen(
+                    color=utils.color_picker_qcolor(
+                        length=len(curves),
+                        index=i,
+                        alpha=alpha,
+                        color=self.params.color,
+                    )
+                )
