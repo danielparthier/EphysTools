@@ -166,14 +166,8 @@ class MetaData:
         experimenter: str | list = "unknown",
         license_number: str = "unknown",
         subject_id: str = "unknown",
-        species: str | list = ["mouse", "rat", "human"],
-        strain: str | list = [
-            "C57BL/6J",
-            "C57BL/6JEi",
-            "C57BL/6N",
-            "129S1/SvImJ",
-            "BALB/c",
-        ],
+        species: str | list = "mouse",
+        strain: str = "C57BL/6J",
         genotype: str = "WT",
         date_of_birth: str = "YYYY-MM-DD",
         sex: str = "unknown",
@@ -190,15 +184,15 @@ class MetaData:
             subject_id (str, optional): The ID of the subject involved in the experiment.
                 Defaults to 'unknown'.
             species (str | list, optional): The species of the subject.
-                Defaults to ['mouse', 'rat', 'human'].
-            strain (str | list, optional): The strain of the subject.
-                Defaults to ['C57BL/6J'].
+                Defaults to 'mouse', other options are 'rat', 'human'.
+            strain (str, optional): The strain of the subject.
+                Defaults to 'C57BL/6J'.
             genotype (str, optional): The genotype of the subject.
                 Defaults to 'WT'.
             date_of_birth (str, optional): The date of birth of the subject in 'YYYY-MM-DD' format.
                 Defaults to 'YYYY-MM-DD'.
             sex (str, optional): The sex of the subject.
-                Defaults to 'unknown'.
+                Defaults to 'unknown', other options are 'male', 'female'.
             add (bool, optional): If True, appends the new file information to existing data.
                 Defaults to True.
         """
@@ -214,6 +208,11 @@ class MetaData:
             pass
         else:
             print("Species not in default list ('mouse', 'rat', 'human').")
+            species = "unknown"
+
+        if sex not in ["unknown", "male", "female"]:
+            print("Sex not in default list ('unknown', 'male', 'female').")
+            sex = "unknown"
 
         for file in file_path:
             time_created = datetime.fromtimestamp(os.path.getctime(file))
