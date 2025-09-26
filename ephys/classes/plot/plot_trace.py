@@ -267,6 +267,7 @@ class TracePlotPyQt(TracePlot):
         self.win = pg.GraphicsLayoutWidget(show=self.params.show, title="Trace Plot")
         self.flat_sweep_index_start = np.array([])
         self.flat_sweep_index_end = np.array([])
+        self.highlight: dict[str, int | None] = {"sweep_index": None}
 
     def plot(
         self,
@@ -590,6 +591,7 @@ class TracePlotPyQt(TracePlot):
                 for sweep in item_list:
                     if isinstance(sweep, HighlightCurve):
                         plot_item.removeItem(sweep)
+        self.highlight["sweep_index"] = sweep_index
 
     def remove_highlight(self) -> None:
         self.sweep_highlight(sweep_index=None)
