@@ -4,13 +4,13 @@ This module provides classes for representing experimental data and metadata.
 
 import os
 import struct
+import json
 from typing import Any
 
 from datetime import datetime, timedelta
 import matplotlib.style as mplstyle
 import numpy as np
 import pandas as pd
-from ephys import utils
 from ephys.classes.trace import Trace
 
 mplstyle.use("fast")
@@ -152,13 +152,34 @@ class MetaData:
     """
 
     def __init__(
-        self, file_path: str | list = "", experimenter: str | list = "unknown"
+        self,
+        file_path: str | list = "",
+        experimenter: str | list = "unknown",
+        license_number: str = "unknown",
+        subject_id: str = "unknown",
+        species: str | list = "mouse",
+        strain: str = "C57BL/6J",
+        genotype: str = "WT",
+        date_of_birth: str = "YYYY-MM-DD",
+        sex: str = "unknown",
     ) -> None:
         self.file_info = np.array([])
         self.experiment_info = np.array([])
         self.subject_info = np.array([])
         if file_path != "":
-            self.add_file_info(file_path, experimenter, add=False)
+            # Extract subject-related info from kwargs if provided
+            self.add_file_info(
+                file_path=file_path,
+                experimenter=experimenter,
+                license_number=license_number,
+                subject_id=subject_id,
+                species=species,
+                strain=strain,
+                genotype=genotype,
+                date_of_birth=date_of_birth,
+                sex=sex,
+                add=False,
+            )
 
     def add_file_info(
         self,
@@ -213,6 +234,16 @@ class MetaData:
         if sex not in ["unknown", "male", "female"]:
             print("Sex not in default list ('unknown', 'male', 'female').")
             sex = "unknown"
+
+        base_dir = os.path.dirname(__file__)
+        json_path = os.path.join(base_dir, "..", "database", "mouse_strains.json")
+
+        with open(file=json_path, mode="r", encoding="utf-8") as f:
+            strain_list = json.load(f)
+
+        if strain not in strain_list["strain"]:
+            print(f"Strain '{strain}' not in default list. Setting to 'unknown'.")
+            strain = "unknown"
 
         for file in file_path:
             time_created = datetime.fromtimestamp(os.path.getctime(file))
@@ -302,7 +333,7 @@ class MetaData:
         Returns:
             list[str]: The file path(s) stored in the MetaData object.
         """
-        return [file["file_name"] for file in self.file_info]
+        return self.get_file_attribute("file_path")
 
     def get_file_name(self) -> list[str]:
         """
@@ -311,7 +342,106 @@ class MetaData:
         Returns:
             list[str]: The file name(s) stored in the MetaData object.
         """
-        return [file["file_name"] for file in self.file_info]
+        return self.get_file_attribute("file_name")
+
+    def get_experimenter(self) -> list[str]:
+        """
+        Retrieves the experimenter name(s) from the MetaData object.
+
+        Returns:
+            list[str]: The experimenter name(s) stored in the MetaData object.
+        """
+        return self.get_experiment_attribute("experimenter")
+
+    def get_license_number(self) -> list[str]:
+        """
+        Retrieves the license number(s) from the MetaData object.
+
+        Returns:
+            list[str]: The license number(s) stored in the MetaData object.
+        """
+        return self.get_experiment_attribute("license_number")
+
+    def get_species(self) -> list[str]:
+        """
+        Retrieves the species name(s) from the MetaData object.
+
+        Returns:
+            list[str]: The species name(s) stored in the MetaData object.
+        """
+        return self.get_subject_attribute("species")
+
+    def get_date_of_birth(self) -> list[str]:
+        """
+        Retrieves the date(s) of birth from the MetaData object.
+
+        Returns:
+            list[str]: The date(s) of birth stored in the MetaData object.
+        """
+        return self.get_subject_attribute("date_of_birth")
+
+    def get_date_of_experiment(self) -> list[Any]:
+        """
+        Retrieves the date(s) of the experiment from the MetaData object.
+
+        Returns:
+            list[Any]: The date(s) of the experiment stored in the MetaData object.
+        """
+        return self.get_experiment_attribute("date_of_experiment")
+
+    def get_experiment_attribute(self, attribute: str) -> list[str]:
+        """
+        Retrieves the specified attribute(s) from the ExperimentInfo object.
+
+        Args:
+            attribute (str): The name of the attribute to retrieve.
+        Returns:
+            list[str]: The values of the specified attribute(s) from the ExperimentInfo object.
+        """
+        # check that attribute exists
+        if attribute not in self.experiment_info[0]:
+            raise ValueError(f"Attribute '{attribute}' not found in experiment_info.")
+        else:
+            return [
+                experiment[attribute]
+                for experiment in self.experiment_info
+                if attribute in experiment
+            ]
+
+    def get_file_attribute(self, attribute: str) -> list[str]:
+        """
+        Retrieves the specified attribute(s) from the MetaData object.
+
+        Args:
+            attribute (str): The name of the attribute to retrieve.
+        Returns:
+            list[str]: The values of the specified attribute(s) from the MetaData object.
+        """
+        # check that attribute exists
+        if attribute not in self.file_info[0]:
+            raise ValueError(f"Attribute '{attribute}' not found in file_info.")
+        else:
+            return [file[attribute] for file in self.file_info if attribute in file]
+
+    def get_subject_attribute(self, attribute: str) -> list[str]:
+        """
+        Retrieves the specified attribute(s) from the SubjectInfo object.
+
+        Args:
+            attribute (str): The name of the attribute to retrieve.
+
+        Returns:
+            list[str]: The values of the specified attribute(s) from the SubjectInfo object.
+        """
+        # check that attribute exists
+        if attribute not in self.subject_info[0]:
+            raise ValueError(f"Attribute '{attribute}' not found in subject_info.")
+        else:
+            return [
+                subject[attribute]
+                for subject in self.subject_info
+                if attribute in subject
+            ]
 
 
 class ExpData:
@@ -321,6 +451,9 @@ class ExpData:
     Args:
         file_path (str | list): The path(s) to the file(s) containing the data.
         experimenter (str, optional): The name of the experimenter. Defaults to 'unknown'.
+        sort (bool, optional): If True, sorts the protocols by date after loading.
+            Defaults to True.
+        **kwargs: Additional keyword arguments for the MetaData class.
 
     Attributes:
         protocols (list): A list of Trace objects representing the protocols.
@@ -329,13 +462,17 @@ class ExpData:
     """
 
     def __init__(
-        self, file_path: str | list, experimenter: str = "unknown", sort: bool = True
+        self,
+        file_path: str | list,
+        experimenter: str = "unknown",
+        sort: bool = True,
+        **kwargs,
     ) -> None:
         self.protocols = []
         self.meta_data = MetaData()
         if isinstance(file_path, str):
             self.protocols.append(Trace(file_path))
-            self.meta_data = MetaData(file_path, experimenter)
+            self.meta_data = MetaData(file_path, experimenter, **kwargs)
 
         elif isinstance(file_path, list):
             loaded_files = []
@@ -350,12 +487,17 @@ class ExpData:
                     print(f"Error loading file {file}: {err}")
                     print("Skipping file.")
                     continue
-            self.meta_data = MetaData(loaded_files, experimenter)
+            self.meta_data = MetaData(
+                file_path=loaded_files, experimenter=experimenter, **kwargs
+            )
         if sort:
             self.sort_by_date()
 
     def add_file(
-        self, file_path: str | list, experimenter: str = "unknown", sort: bool = True
+        self,
+        file_path: str | list,
+        experimenter: str = "unknown",
+        sort: bool = True,
     ) -> None:
         """
         Adds a file or files to the ExpData object.
@@ -363,15 +505,12 @@ class ExpData:
         Args:
             file_path (str | list): The path(s) to the file(s) to be added.
             experimenter (str, optional): The name of the experimenter. Defaults to 'unknown'.
+            sort (bool, optional): If True, sorts the protocols by date after adding.
+                Defaults to True.
         """
-        if isinstance(file_path, str):
-            file_path = [file_path]
 
         # Check for duplicates
-        existing_file_path = self.meta_data.get_file_path()
-        new_files = np.array(file_path)[
-            np.invert(np.isin(file_path, existing_file_path))
-        ].tolist()
+        new_files = self.new_file_paths(file_path)
 
         for file in new_files:
             self.protocols.append(Trace(file))
@@ -410,31 +549,53 @@ class ExpData:
     def meta_data_summary(self, to_dataframe: bool = True) -> dict | pd.DataFrame:
         """
         Returns a summary of the metadata information.
+
+        Args:
+            to_dataframe (bool, optional): If True, returns the summary as a pandas DataFrame
+                Defaults to True.
+        Returns:
+            dict | pd.DataFrame: A dictionary or DataFrame containing the metadata summary.
         """
 
         summary_dict = {
-            "file_name": [
-                file_info_i["file_name"] for file_info_i in self.meta_data.file_info
-            ],
-            "file_path": [
-                file_info_i["file_path"] for file_info_i in self.meta_data.file_info
-            ],
-            "date_of_experiment": [
-                experiment_info_i["date_of_experiment"]
-                for experiment_info_i in self.meta_data.experiment_info
-            ],
-            "experimenter": [
-                experiment_info_i["experimenter"]
-                for experiment_info_i in self.meta_data.experiment_info
-            ],
+            "file_name": self.meta_data.get_file_name(),
+            "file_path": self.meta_data.get_file_path(),
+            "date_of_experiment": self.meta_data.get_date_of_experiment(),
+            "experimenter": self.meta_data.get_experiment_attribute("experimenter"),
         }
         if to_dataframe:
             return pd.DataFrame(summary_dict)
         return summary_dict
 
+    def new_file_paths(self, file_paths: list | str) -> list[str]:
+        """
+        Returns a list of file paths that are not already in the ExpData object.
+
+        Args:
+            file_paths (list | str): The path(s) to the file(s) to be checked.
+
+        Returns:
+            list[str]: A list of file paths that are not already in the ExpData object.
+        """
+        if isinstance(file_paths, str):
+            file_paths = [file_paths]
+
+        new_file_paths = [
+            file_path
+            for file_path in file_paths
+            if file_path not in self.meta_data.get_file_path()
+        ]
+        return new_file_paths
+
     def get_window_summary(self, remove_duplicates: bool = True) -> pd.DataFrame:
         """
-        Returns a summary of the window information for each protocol.
+        Compiles window summary data from all protocols into a single DataFrame.
+
+        Args:
+            remove_duplicates (bool, optional): If True, removes duplicate entries
+                from the final DataFrame. Defaults to True.
+        Returns:
+            pd.DataFrame: A DataFrame containing the compiled window summary data.
         """
         pd_collection = []
         meta_df = self.meta_data_summary()
@@ -472,6 +633,23 @@ class ExpData:
         return_output: bool = False,
         plot_individual: bool = False,
     ) -> None:
+        """
+        Applies the window function to each protocol's window_summary.
+
+        Args:
+            window (list | tuple | None, optional): The window to apply. Defaults to None.
+            channels (Any, optional): The channels to include. Defaults to None.
+            signal_type (Any, optional): The type of signal to process. Defaults to None.
+            rec_type (str, optional): The type of recording. Defaults to "".
+            function (str, optional): The function to apply. Defaults to "mean".
+            label (str, optional): The label for the window function. Defaults to "".
+            sweep_subset (Any, optional): A subset of sweeps to include. Defaults to None.
+            return_output (bool, optional): Whether to return the output. Defaults to False.
+            plot_individual (bool, optional): Whether to plot individual traces. Defaults to False.
+
+        Returns:
+            None
+        """
         for protocol in self.protocols:
             protocol: Trace
             protocol.window_function(
@@ -489,6 +667,20 @@ class ExpData:
     def label_diff(
         self, labels: list | None = None, new_name: str = "", time_label: str = ""
     ) -> None:
+        """
+        Applies the `label_diff` method to each protocol's window_summary.
+
+        Args:
+            labels (list, optional): Labels to use for differentiation.
+            Defaults to None.
+            new_name (str, optional): Name for the differentiated label.
+            Defaults to "".
+            time_label (str, optional): Time label for differentiation.
+            Defaults to "".
+
+        Returns:
+            None
+        """
         for protocol in self.protocols:
             protocol: Trace
             protocol.window_summary.label_diff(
@@ -498,6 +690,20 @@ class ExpData:
     def label_ratio(
         self, labels: list | None = None, new_name: str = "", time_label: str = ""
     ) -> None:
+        """
+        Calculates and assigns the ratio of specified labels within each protocol's
+        window summary.
+
+        Args:
+            labels (list, optional): Labels to compute the ratio for. If None,
+            uses default labels.
+            new_name (str, optional): Name for the computed ratio. Defaults to "".
+            time_label (str, optional): Time label for the ratio calculation.
+            Defaults to "".
+
+        Returns:
+            None
+        """
         for protocol in self.protocols:
             protocol: Trace
             protocol.window_summary.label_ratio(
@@ -509,7 +715,24 @@ class ExpData:
         align_onset: bool = False,
         **kwargs,
     ) -> None:
-        from ephys.classes.window_functions import FunctionOutput
+        """
+        Plots a summary of the experiment data using windowed function outputs.
+        This method retrieves a summary DataFrame of windowed experiment data,
+        processes it, and visualizes the results using the FunctionOutput class.
+        The plot can optionally be aligned to the onset of events.
+
+        Args:
+            align_onset (bool, optional): If True, aligns the plot to the onset
+            of events. Defaults to False.
+            **kwargs: Additional keyword arguments passed to the
+            FunctionOutput.plot() method.
+
+        Returns:
+            None
+        """
+        from ephys.classes.window_functions import (
+            FunctionOutput,
+        )  # pylint: disable=import-outside-toplevel
 
         df_complete: pd.DataFrame = self.get_window_summary()
         summary_output = FunctionOutput()
