@@ -399,7 +399,9 @@ class MetaData:
             list[str]: The values of the specified attribute(s) from the ExperimentInfo object.
         """
         # check that attribute exists
-        if attribute not in self.experiment_info[0]:
+        if self.experiment_info.size == 0:
+            return []
+        elif attribute not in self.experiment_info[0]:
             raise ValueError(f"Attribute '{attribute}' not found in experiment_info.")
         else:
             return [
@@ -418,7 +420,9 @@ class MetaData:
             list[str]: The values of the specified attribute(s) from the MetaData object.
         """
         # check that attribute exists
-        if attribute not in self.file_info[0]:
+        if self.file_info.size == 0:
+            return []
+        elif attribute not in self.file_info[0]:
             raise ValueError(f"Attribute '{attribute}' not found in file_info.")
         else:
             return [file[attribute] for file in self.file_info if attribute in file]
@@ -434,7 +438,9 @@ class MetaData:
             list[str]: The values of the specified attribute(s) from the SubjectInfo object.
         """
         # check that attribute exists
-        if attribute not in self.subject_info[0]:
+        if self.subject_info.size == 0:
+            return []
+        elif attribute not in self.subject_info[0]:
             raise ValueError(f"Attribute '{attribute}' not found in subject_info.")
         else:
             return [
