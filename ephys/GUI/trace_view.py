@@ -56,7 +56,6 @@ class TracePlotWindow(QWidget):
         )
 
         # Trace List
-        # TODO: manage handling of list - removing items etc.
         if isinstance(self.main_window.trace_list, list):
             self.trace_list = self.main_window.trace_list
 

@@ -557,7 +557,7 @@ class TracePlotPyQt(TracePlot):
         highlight_exists = False
         if self.params.alpha != 0.1:
             for plot_item in plot_items:
-                self._set_curve_pen(plot_item.listDataItems(), alpha=0.1)
+                self._set_curve_alpha(plot_item.listDataItems(), alpha=0.1)
 
         for plot_item in plot_items:
             for sweep in plot_item.listDataItems():
@@ -587,7 +587,7 @@ class TracePlotPyQt(TracePlot):
         if not highlight_exists:
             for plot_item in plot_items:
                 item_list = plot_item.listDataItems()
-                self._set_curve_pen(item_list, alpha=self.params.alpha)
+                self._set_curve_alpha(item_list, alpha=self.params.alpha)
                 for sweep in item_list:
                     if isinstance(sweep, HighlightCurve):
                         plot_item.removeItem(sweep)
@@ -613,3 +613,12 @@ class TracePlotPyQt(TracePlot):
                         color=self.params.color,
                     )
                 )
+
+    def _set_curve_alpha(self, curves, alpha=None) -> None:
+        if alpha is None:
+            alpha = self.params.alpha
+        for i, curve in enumerate(curves):
+            if curve.opts["pen"].color().alphaF() != alpha:
+                col = curve.opts["pen"].color()
+                col.setAlphaF(alpha)
+                curve.setPen(color=col)

@@ -14,15 +14,13 @@ from PySide6.QtWidgets import (
     QApplication,
 )
 
-# from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-# from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
-
+import pyqtgraph as pg
 
 from .styles import apply_style
 from ephys.classes.experiment_objects import ExpData
 from ephys.GUI.mainwindow import MainWindow
 
-# filepath: /home/daniel/Work/RETAIN/Code/MossyFibre/ephys/GUI/gui_app.py
+pg.setConfigOptions(antialias=True)
 
 
 class DataLoader(QRunnable):

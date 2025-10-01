@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 
-from ephys.classes.experiment_objects import ExpData
+from ephys.classes.experiment_objects import ExpData, MetaData
 from ephys.GUI.sessioninfo import SessionInfo
 from ephys.GUI.sidemenu import SideMenu, SideMenuContainer
 from ephys.GUI.sidebar_right import SideBarRight
@@ -26,7 +26,6 @@ class MainWindow(QMainWindow):
         self.session_info = SessionInfo()
 
         self.threadpool = QThreadPool()
-        self.highlight = False
         thread_count = self.threadpool.maxThreadCount()
         print(f"Multithreading enabled with {thread_count} threads.")
 
@@ -56,7 +55,7 @@ class MainWindow(QMainWindow):
         self.sweep_selector.setSingleStep(1)
 
         self.highlight_switch = QCheckBox("Highlight")
-        self.highlight_switch.setChecked(self.highlight)
+        self.highlight_switch.setChecked(False)
         self.highlight_switch.stateChanged.connect(self.change_highlight)
         self.status_bar.addPermanentWidget(self.highlight_switch)
 
@@ -83,9 +82,12 @@ class MainWindow(QMainWindow):
         )
         # splitter.addWidget(sidebar_frame)
         # Create a layout for the frame
-        menu_layout_left = SideMenu(self)
+        self.menu_layout_left = SideMenu(self)
+        self.menu_layout_left.combobox.currentTextChanged.connect(
+            self.select_file_from_list
+        )
 
-        sidebar_frame.setLayout(menu_layout_left)
+        sidebar_frame.setLayout(self.menu_layout_left)
 
         splitter.addWidget(sidebar_frame)
         # splitter.addWidget(menu_layout_left)
@@ -105,7 +107,7 @@ class MainWindow(QMainWindow):
         sidebar_right.setMaximumSize(QSize(300, 1200))
         splitter.addWidget(sidebar_right)
 
-        menu_layout_left.addWidget(self.side_menu_container)
+        self.menu_layout_left.addWidget(self.side_menu_container)
         # Add the session info widget
 
         # decouple tab_widget from the splitter
@@ -114,6 +116,9 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         print("Window closed")
+        # Perform any necessary cleanup here
+        if isinstance(self.data, ExpData):
+            self.data = None
         event.accept()
 
     def close_tab(self, index: int) -> None:
@@ -124,14 +129,17 @@ class MainWindow(QMainWindow):
 
         # Disconnect the tabCloseRequested signal temporarily to prevent cascading closes
         old_signal = self.trace_plot.tabCloseRequested.disconnect()
-
+        if isinstance(self.data, ExpData):
+            self.data.remove_file(index=index)
+            self.session_info.set_file_path(self.data.meta_data.get_file_path())
+            self.session_info.set_file_list(self.data.meta_data.get_file_name())
         # Remove just this one tab
         self.trace_plot.removeTab(index)
         print(f"Closed tab '{tab_title}' at index {index}")
 
         # Reconnect the signal
         self.trace_plot.tabCloseRequested.connect(self.close_tab)
-
+        self.menu_layout_left.refresh_file_list()
         # Clean up the tab's resources safely
         if isinstance(tab_selected, TracePlotWindow):
             try:
@@ -149,12 +157,9 @@ class MainWindow(QMainWindow):
     def _sweep_highlight(self, sweep_number: int | None) -> None:
         """Highlight a specific sweep in the plot."""
         current_tab_index = self.trace_plot.currentIndex()
-        print(current_tab_index)
         current_trace_tab = self.trace_plot.widget(0)
         sweep_index = None
         if isinstance(current_trace_tab, TracePlotWindow):
-            print(current_trace_tab.trace_list)
-            print(len(current_trace_tab.trace_list))
             current_plot = current_trace_tab.trace_list[current_tab_index]
             if sweep_number is None:
                 sweep_index = None
@@ -170,20 +175,29 @@ class MainWindow(QMainWindow):
 
     def connect_sweep_selector(self) -> None:
         current_tab_index: int = self.trace_plot.currentIndex()
-        print(current_tab_index)
-        self.sweep_selector.setRange(
-            1, self.trace_list[current_tab_index].trace.sweep_count
-        )
-        print(self.trace_list[current_tab_index].trace.sweep_count)
-        self.sweep_selector.setValue(
-            self.trace_list[current_tab_index].highlight["sweep_index"]
-        )
+        if current_tab_index >= 0 and len(self.trace_list) > 0:
+            if self.trace_list[current_tab_index].trace.sweep_count == 1:
+                self.sweep_selector.setEnabled(False)
+            else:
+                self.sweep_selector.setEnabled(True)
+                self.sweep_selector.setRange(
+                    1, self.trace_list[current_tab_index].trace.sweep_count
+                )
+            if self.trace_list[current_tab_index].highlight["sweep_index"] is None:
+                self.sweep_selector.setValue(1)
+            else:
+                self.sweep_selector.setValue(
+                    self.trace_list[current_tab_index].highlight["sweep_index"]
+                )
 
     def change_highlight(self) -> None:
         if not self.highlight_switch.isChecked():
             self.sweep_highlight(sweep_number=None)
         else:
             self.sweep_highlight(sweep_number=self.sweep_selector.value())
+
+    def select_file_from_list(self, s):
+        print("text change: ", s)
 
     # def close_tab(self, index: int) -> None:
     #     """Close the tab at the given index."""
@@ -219,4 +233,4 @@ class MainWindow(QMainWindow):
     #     self.the_button_was_clicked(file_path)
     #     if isinstance(file_path, str):
     #         file_path = [file_path]
-    #     self.file_list = file_path
+    #     self.file_list = file_pathlen(self.trace_list)
