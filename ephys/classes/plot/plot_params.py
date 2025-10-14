@@ -32,7 +32,7 @@ class PlotParams:
         show (bool): Whether to show the plot.
         return_fig (bool): Whether to return the figure object.
         window_mode (str): Mode for handling windows
-            ('use_plot', 'use_trace', 'add_to_trace').
+            ('use_plot', 'use_trace', 'add_to_trace', 'no_window').
         theme (str): Theme for the plot ('dark' or 'light').
     """
 
@@ -60,10 +60,12 @@ class PlotParams:
         self.xlim = kwargs.get("xlim", (0, 0))
         self.show = kwargs.get("show", True)
         self.return_fig = kwargs.get("return_fig", False)
+        self.plot_window = kwargs.get("plot_window", True)
         self.window_mode = kwargs.get(
             "window_mode", "add_to_trace"
         )  # Default mode for handling windows
         self.line_width = kwargs.get("line_width", 1.0)
+        self.antialiasing = kwargs.get("antialiasing", True)
 
     def apply_theme(self, theme="dark") -> None:
         """Apply the specified theme to the plot parameters.
@@ -120,10 +122,17 @@ class PlotParams:
             raise TypeError("show must be a boolean value.")
         if not isinstance(self.return_fig, bool):
             raise TypeError("return_fig must be a boolean value.")
-        if self.window_mode not in ["use_plot", "use_trace", "add_to_trace"]:
+        if not isinstance(self.plot_window, bool):
+            raise TypeError("plot_window must be a boolean value.")
+        if self.window_mode not in [
+            "use_plot",
+            "use_trace",
+            "add_to_trace",
+            "no_window",
+        ]:
             raise ValueError(
                 f"Invalid window_mode: {self.window_mode}. "
-                "Must be 'use_plot', 'use_trace', or 'add_to_trace'."
+                "Must be 'use_plot', 'use_trace', 'add_to_trace', or 'no_window'."
             )
         if not isinstance(self.align_onset, bool):
             raise TypeError("align_onset must be a boolean value.")
@@ -135,6 +144,8 @@ class PlotParams:
             raise TypeError("line_width must be a number (int or float).")
         if not isinstance(self.theme, str) and self.theme not in ["dark", "light"]:
             raise TypeError("theme must be a string and either 'dark' or 'light'.")
+        if not isinstance(self.antialiasing, bool):
+            raise TypeError("antialiasing must be a boolean value.")
 
     def to_dict(self) -> dict:
         """Convert the plot parameters to a dictionary."""
@@ -153,12 +164,14 @@ class PlotParams:
             "bg_color": self.bg_color,
             "axis_color": self.axis_color,
             "window": self.window,
+            "plot_window": self.plot_window,
             "window_color": self.window_color,
             "xlim": self.xlim,
             "show": self.show,
             "return_fig": self.return_fig,
             "window_mode": self.window_mode,
             "theme": self.theme,
+            "antialiasing": self.antialiasing,
         }
 
     def __iter__(self):

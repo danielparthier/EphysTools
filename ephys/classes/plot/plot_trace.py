@@ -22,10 +22,6 @@ from ephys import utils
 from ephys.classes.plot.plot_params import PlotParams, _set_axs_color
 
 
-# switch off antialiasing for pyqtgraph
-# pg.setConfigOptions(antialias=False)
-
-
 class TracePlot:
     """Base class for plotting traces."""
 
@@ -84,7 +80,11 @@ class TracePlot:
             else:
                 windows_to_display = self.trace.window
 
-        # Case 3: Use windows from plot without modifying trace.window
+        # Case 3: No windows to display
+        elif self.params.window_mode == "no_window":
+            windows_to_display = []
+
+        # Case 4: Use windows from plot without modifying trace.window
         else:  # self.params.window_mode == "use_plot"
             if isinstance(self.params.window, tuple):
                 windows_to_display = [self.params.window]
@@ -308,6 +308,8 @@ class TracePlotPyQt(TracePlot):
         if kwargs:
             self.params.update_params(**kwargs)
 
+        pg.setConfigOptions(antialias=self.params.antialiasing)
+
         def sync_channels(source_region, channel_items, window_index=0):
             # Get region bounds from the source region
             min_val, max_val = source_region.getRegion()
@@ -481,7 +483,7 @@ class TracePlotPyQt(TracePlot):
                     time_array[0, :],
                     channel.average.trace,
                     skipFiniteCheck=True,
-                    antialias=False,
+                    antialias=self.params.antialiasing,
                 )
                 channel_tmp.addItem(average_sweep)
 
@@ -529,7 +531,7 @@ class TracePlotPyQt(TracePlot):
                 self._set_curve_pen(plot_item.listDataItems())
 
     def sweep_highlight(
-        self, sweep_index: int | None = None, color="red", alpha=1, width=2
+        self, sweep_index: int | None = None, color="red", alpha=1, width=1
     ) -> None:
         """
         Highlights a specific sweep in the plot by adjusting the pen properties of the curves.
@@ -562,12 +564,7 @@ class TracePlotPyQt(TracePlot):
         for plot_item in plot_items:
             for sweep in plot_item.listDataItems():
                 if isinstance(sweep, HighlightCurve):
-                    sweep.update_data(
-                        sweep_index=sweep_index,
-                    )
-                    sweep.setPen(
-                        pen=pen_opts,
-                    )
+                    sweep.update_data(sweep_index=sweep_index, pen=pen_opts)
                     highlight_exists = sweep.sweep_index is not None
 
         if not highlight_exists and isinstance(sweep_index, int):
