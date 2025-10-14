@@ -5,7 +5,7 @@ the efficiency of curve handling in pyqtgraph.
 """
 
 import numpy as np
-from pyqtgraph import PlotCurveItem
+from pyqtgraph import PlotCurveItem, mkPen
 
 
 class CurveArray:
@@ -64,8 +64,12 @@ class HighlightCurve(PlotCurveItem):
         self.update_data(sweep_index=sweep_index)
 
     def update_data(
-        self, sweep_index: int | None, sweep_trace: "TraceCurve |  None" = None
+        self,
+        sweep_index: int | None,
+        sweep_trace: "TraceCurve |  None" = None,
+        pen=mkPen(color="red", alpha=1, width=1),
     ) -> None:
+
         if sweep_trace is not None:
             self.trace_curve = sweep_trace
         if isinstance(self.trace_curve, TraceCurve):
@@ -73,6 +77,7 @@ class HighlightCurve(PlotCurveItem):
             if data_xy is not None:
                 self.setData(x=data_xy[0], y=data_xy[1])
                 self.sweep_index = sweep_index
+                self.setPen(pen)
             else:
                 self.setData(x=np.array([]), y=np.array([]))
                 self.sweep_index = None
