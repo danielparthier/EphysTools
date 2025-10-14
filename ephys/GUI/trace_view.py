@@ -58,6 +58,9 @@ class TracePlotWindow(QWidget):
         # Trace List
         if isinstance(self.main_window.trace_list, list):
             self.trace_list = self.main_window.trace_list
+        else:
+            self.main_window.trace_list = []
+            self.trace_list = []
 
         # Create a frame for the plot
         plot_frame = QFrame()
@@ -85,14 +88,14 @@ class TracePlotWindow(QWidget):
         self.plot_area_layout = QVBoxLayout(plot_area)
         plot_area.setLayout(self.plot_area_layout)
 
-    def add_trace_plot(self, trace: Trace, **kwargs) -> None:
+    def add_trace_plot(self, trace: Trace, color="viridis", **kwargs) -> None:
         from ephys.classes.plot.plot_trace import TracePlotPyQt
 
         """Add a trace plot widget to the plot area."""
         trace_plot: None | TracePlotPyQt | tuple[Figure, Axes] = trace.plot(
             backend="pyqt",
-            alpha=1,
-            color="viridis",
+            alpha=kwargs.get("alpha", 1.0),
+            color=color,
             show=False,
             return_fig=True,
             theme=self.main_window.session_info.theme,

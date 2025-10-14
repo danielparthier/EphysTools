@@ -317,7 +317,11 @@ class SideMenu(QVBoxLayout):
                 trace_plot = TracePlotWindow(
                     main_window=self.main_window, file_name=self.file_paths[i]
                 )
-                trace_plot.add_trace_plot(trace=self.main_window.data.protocols[i])
+                trace_plot.add_trace_plot(
+                    trace=self.main_window.data.protocols[i],
+                    color=config.CURVE_COLOR,
+                    antialiasing=config.USE_ANTIALIASING,
+                )
                 self.main_window.trace_plot.addTab(trace_plot, file_name)
         else:
             print("No data loaded yet.")

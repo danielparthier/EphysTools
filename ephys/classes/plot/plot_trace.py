@@ -468,6 +468,7 @@ class TracePlotPyQt(TracePlot):
                     region.sigRegionChanged.connect(
                         make_region_callback(region, win_item, window_index=win_index)
                     )
+                    print("moved:", region.moving)
                     region.setZValue(10 + win_index)
                     for line in region.lines:
                         line.setPen(self.params.window_color)

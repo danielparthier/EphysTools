@@ -20,8 +20,6 @@ from .styles import apply_style
 from ephys.classes.experiment_objects import ExpData
 from ephys.GUI.mainwindow import MainWindow
 
-pg.setConfigOptions(antialias=True)
-
 
 class DataLoader(QRunnable):
     def __init__(self, file_path, experimenter_name):

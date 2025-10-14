@@ -15,7 +15,12 @@ from ephys.GUI.sidemenu import SideMenu, SideMenuContainer
 from ephys.GUI.sidebar_right import SideBarRight
 from ephys.GUI.menubar import FileMenu
 from ephys.GUI.trace_view import TracePlotWindow
+from ephys.GUI.performance_menu import PerformanceMenu
 from PySide6.QtWidgets import QWidget, QHBoxLayout
+import ephys.GUI.GUI_config as config
+import pyqtgraph as pg
+
+pg.setConfigOptions(antialias=config.USE_ANTIALIASING)
 
 
 class MainWindow(QMainWindow):
@@ -25,9 +30,7 @@ class MainWindow(QMainWindow):
         self.data: ExpData | None = None
         self.session_info = SessionInfo()
 
-        self.threadpool = QThreadPool()
-        thread_count = self.threadpool.maxThreadCount()
-        print(f"Multithreading enabled with {thread_count} threads.")
+        self.set_multi_threading(thread_n=4)
 
         self.setWindowTitle("EphysTools")
         self.setGeometry(100, 100, 1200, 800)
@@ -50,26 +53,56 @@ class MainWindow(QMainWindow):
         sweep_selector_container = QWidget()
         sweep_selector_layout = QHBoxLayout(sweep_selector_container)
         sweep_selector_layout.setContentsMargins(0, 0, 0, 0)
+        sweep_selector_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.sweep_selector = QSpinBox()
         self.sweep_selector.setSingleStep(1)
 
+        # Add menue to change visual trace color and antialiasing (Fast mode)
+        self.fast_mode_menu = PerformanceMenu(parent=self)
+        sweep_selector_layout.addWidget(self.fast_mode_menu)
+        # self.status_bar.addPermanentWidget(self.fast_mode_menue)
+
         self.highlight_switch = QCheckBox("Highlight")
         self.highlight_switch.setChecked(False)
         self.highlight_switch.stateChanged.connect(self.change_highlight)
-        self.status_bar.addPermanentWidget(self.highlight_switch)
+        # self.status_bar.addPermanentWidget(self.highlight_switch)
 
+        sweep_selector_layout.addWidget(self.highlight_switch)
         sweep_selector_layout.addWidget(self.sweep_selector)
         self.sweep_selector.valueChanged.connect(self.sweep_highlight)
 
         self.status_bar.addPermanentWidget(sweep_selector_container)
 
         # Create a splitter
-        splitter = QSplitter()
-        splitter.setOrientation(Qt.Orientation.Horizontal)
-        self.setCentralWidget(splitter)
-        # Create a frame
+        self.splitter = QSplitter()
+        self.splitter.setOrientation(Qt.Orientation.Horizontal)
+        self.setCentralWidget(self.splitter)
 
+        self._init_side_bar_left()
+        self._init_trace_tabs()
+        self._init_sidebar_right()
+
+        # Add the session info widget
+
+        # decouple tab_widget from the splitter
+
+        self.show()
+
+    def set_multi_threading(self, thread_n: int | None) -> None:
+        self.threadpool = QThreadPool()
+        if (
+            isinstance(thread_n, int)
+            and thread_n > 0
+            and thread_n <= self.threadpool.maxThreadCount()
+        ):
+            self.threadpool.setMaxThreadCount(thread_n)
+        else:
+            thread_n = self.threadpool.maxThreadCount()
+            self.threadpool.setMaxThreadCount(thread_n)
+        print(f"Multithreading enabled with {thread_n} threads.")
+
+    def _init_side_bar_left(self) -> None:
         sidebar_frame = QFrame()
         sidebar_frame.setFrameShape(QFrame.Shape.StyledPanel)
         sidebar_frame.setMinimumSize(QSize(150, 150))
@@ -80,39 +113,29 @@ class MainWindow(QMainWindow):
         self.side_menu_container.set_background_svg(
             svg_path="logos/Ephys_letters_gray.svg"
         )
-        # splitter.addWidget(sidebar_frame)
         # Create a layout for the frame
         self.menu_layout_left = SideMenu(self)
+        self.menu_layout_left.addWidget(self.side_menu_container)
         self.menu_layout_left.combobox.currentTextChanged.connect(
             self.select_file_from_list
         )
-
         sidebar_frame.setLayout(self.menu_layout_left)
+        self.splitter.addWidget(sidebar_frame)
 
-        splitter.addWidget(sidebar_frame)
-        # splitter.addWidget(menu_layout_left)
-
+    def _init_trace_tabs(self) -> None:
         self.trace_plot = QTabWidget()
         self.trace_plot.setTabsClosable(True)
         self.trace_plot.setMovable(True)
         self.trace_plot.setMinimumSize(800, 600)
         self.trace_plot.currentChanged.connect(self.connect_sweep_selector)
         self.trace_plot.tabCloseRequested.connect(self.close_tab)
+        self.splitter.addWidget(self.trace_plot)
 
-        splitter.addWidget(self.trace_plot)
-
-        # Add a sidebar on the right side
+    def _init_sidebar_right(self) -> None:
         sidebar_right = SideBarRight(self)
         sidebar_right.setMinimumSize(QSize(180, 150))
         sidebar_right.setMaximumSize(QSize(300, 1200))
-        splitter.addWidget(sidebar_right)
-
-        self.menu_layout_left.addWidget(self.side_menu_container)
-        # Add the session info widget
-
-        # decouple tab_widget from the splitter
-
-        self.show()
+        self.splitter.addWidget(sidebar_right)
 
     def closeEvent(self, event) -> None:
         print("Window closed")
@@ -159,7 +182,9 @@ class MainWindow(QMainWindow):
         current_tab_index = self.trace_plot.currentIndex()
         current_trace_tab = self.trace_plot.widget(0)
         sweep_index = None
-        if isinstance(current_trace_tab, TracePlotWindow):
+        if isinstance(current_trace_tab, TracePlotWindow) and isinstance(
+            current_trace_tab.trace_list, list
+        ):
             current_plot = current_trace_tab.trace_list[current_tab_index]
             if sweep_number is None:
                 sweep_index = None
@@ -198,39 +223,3 @@ class MainWindow(QMainWindow):
 
     def select_file_from_list(self, s):
         print("text change: ", s)
-
-    # def close_tab(self, index: int) -> None:
-    #     """Close the tab at the given index."""
-    #     tab_selected: TracePlotWindow = cast(
-    #         TracePlotWindow, self.trace_plot.widget(index)
-    #     )
-    #     print(index, tab_selected)
-    #     if index >= 0:
-    #         self.trace_plot.removeTab(index)
-    #         print(f"Closed tab at index {index}")
-    #         if hasattr(tab_selected, "cleanup") and callable(
-    #             getattr(tab_selected, "cleanup", None)
-    #         ):
-    #             tab_selected.cleanup()
-    #     if tab_selected is not None:
-    #         # Ensure the tab is properly deleted
-    #         if hasattr(tab_selected, "deleteLater"):
-    #             tab_selected.deleteLater()
-    #         else:
-    #             print("Tab selected does not have deleteLater method")
-
-    # def choose_file(self):
-    #     # Store the dialog as an instance attribute to prevent it from being deleted
-    #     self.get_file = FileSelector()
-    #     # self.get_file.exec()
-    #     file_path = self.get_file.getOpenFileNames(
-    #         self, "Select WCP files", "data/WCP/WholeCell", "WCP files (*.wcp)"
-    #     )[0]
-    #     # if not file_path:
-    #     #     print("No files selected")
-    #     #     return None
-    #     print(f"Selected files: {file_path}")
-    #     self.the_button_was_clicked(file_path)
-    #     if isinstance(file_path, str):
-    #         file_path = [file_path]
-    #     self.file_list = file_pathlen(self.trace_list)
