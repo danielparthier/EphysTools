@@ -116,6 +116,94 @@ def get_exp_date(file_name):
     return rec_date
 
 
+class SubjectInfo:
+    def __init__(
+        self,
+        subject_id: str = "unknown",
+        species: str = "mouse",
+        strain: str = "C57BL/6J",
+        genotype: str = "WT",
+        sex: str = "unknown",
+        date_of_birth: str = "YYYY-MM-DD",
+        date_of_experiment: str = "YYYY-MM-DD",
+        post_natal_days: int | None = None,
+        expression_construct: str = "unknown",
+    ) -> None:
+        self.subject_id = subject_id
+        self.species = species
+        self.strain = strain
+        self.genotype = genotype
+        self.sex = sex
+        self.date_of_birth = date_of_birth
+        self.age = post_natal_days
+        self.expression_construct = expression_construct
+        if date_of_birth != "YYYY-MM-DD":
+            self.date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d")
+        self.date_of_experiment = date_of_experiment
+        if date_of_experiment != "YYYY-MM-DD":
+            self.date_of_experiment = datetime.strptime(date_of_experiment, "%Y-%m-%d")
+        self.calculate_age(post_natal_days)
+
+    def calculate_age(self, post_natal_days: int | None) -> None:
+        if (
+            isinstance(self.date_of_birth, datetime)
+            and isinstance(self.date_of_experiment, datetime)
+            and post_natal_days is None
+        ):
+            self.age = (self.date_of_experiment - self.date_of_birth).days
+        else:
+            self.age = post_natal_days
+
+    def validate(self) -> None:
+        if self.species not in ["mouse", "rat", "human"]:
+            print("Species not in default list ('mouse', 'rat', 'human').")
+            self.species = "unknown"
+            if self.species == "human":
+                self.strain = "NA"
+            if self.species == "rat":
+                if self.strain not in [
+                    "Sprague Dawley",
+                    "Wistar",
+                    "Long Evans",
+                ]:  # TODO: connect to owl database for rat strains
+                    print(
+                        f"Strain '{self.strain}' not in default list. Setting to 'unknown'."
+                    )
+                    self.strain = "unknown"
+            if self.species == "mouse":
+                if self.strain not in [
+                    "C57BL/6J",
+                    "129S1/Sv",
+                    "BALB/c",
+                ]:  # TODO: connect to owl database for mouse strains
+                    print(
+                        f"Strain '{self.strain}' not in default list. Setting to 'unknown'."
+                    )
+                    self.strain = "unknown"
+        if self.sex not in ["unknown", "male", "female", "other"]:
+            print("Sex not in default list ('unknown', 'male', 'female', 'other').")
+            self.sex = "unknown"
+
+        if self.genotype not in ["WT", "KO", "HET"]:
+            print(
+                f"Genotype '{self.genotype}' not in default list. Setting to 'unknown'."
+            )
+            self.genotype = "unknown"
+
+    def to_dict(self) -> dict:
+        return {
+            "subject_id": self.subject_id,
+            "species": self.species,
+            "strain": self.strain,
+            "genotype": self.genotype,
+            "sex": self.sex,
+            "date_of_birth": self.date_of_birth,
+            "date_of_experiment": self.date_of_experiment,
+            "age": self.age,
+            "expression_construct": self.expression_construct,
+        }
+
+
 class MetaData:
     """
     A class representing metadata for experiment files.
@@ -129,6 +217,8 @@ class MetaData:
             experiment. Defaults to 'unknown'.
         subject_id (str, optional): The ID of the subject involved in the
             experiment. Defaults to 'unknown'.
+        age (str, optional): The age of the subject in PxxD format (post-natal days).
+            Defaults to 'P00D'.
         date_of_birth (str, optional): The date of birth of the subject in
             'YYYY-MM-DD' format. Defaults to 'YYYY-MM-DD'.
         sex (str, optional): The sex of the subject. Defaults to 'unknown'.
@@ -157,6 +247,7 @@ class MetaData:
         experimenter: str | list = "unknown",
         license_number: str = "unknown",
         subject_id: str = "unknown",
+        age: str = "P00D",
         species: str | list = "mouse",
         strain: str = "C57BL/6J",
         genotype: str = "WT",
@@ -173,6 +264,7 @@ class MetaData:
                 experimenter=experimenter,
                 license_number=license_number,
                 subject_id=subject_id,
+                age=age,
                 species=species,
                 strain=strain,
                 genotype=genotype,
@@ -187,11 +279,13 @@ class MetaData:
         experimenter: str | list = "unknown",
         license_number: str = "unknown",
         subject_id: str = "unknown",
+        age: str | int = "unknown",
         species: str | list = "mouse",
         strain: str = "C57BL/6J",
         genotype: str = "WT",
         date_of_birth: str = "YYYY-MM-DD",
         sex: str = "unknown",
+        description: str = "",
         add: bool = True,
     ) -> None:
         """
@@ -204,6 +298,8 @@ class MetaData:
                 Defaults to 'unknown'.
             subject_id (str, optional): The ID of the subject involved in the experiment.
                 Defaults to 'unknown'.
+            age (str, optional): The age of the subject in PxxD format (post-natal days).
+                Defaults to 'P00D'.
             species (str | list, optional): The species of the subject.
                 Defaults to 'mouse', other options are 'rat', 'human'.
             strain (str, optional): The strain of the subject.
@@ -214,6 +310,8 @@ class MetaData:
                 Defaults to 'YYYY-MM-DD'.
             sex (str, optional): The sex of the subject.
                 Defaults to 'unknown', other options are 'male', 'female'.
+            description (str, optional): A description of the experiment.
+                Defaults to an empty string.
             add (bool, optional): If True, appends the new file information to existing data.
                 Defaults to True.
         """
@@ -267,18 +365,34 @@ class MetaData:
                     "date_of_experiment": estimated_exp_date,
                     "experimenter": experimenter,
                     "license": license_number,
+                    "description": description,
                 }
             )
-            subject_list.append(
-                {
-                    "species": species,
-                    "strain": strain,
-                    "genotype": genotype,
-                    "subject_id": subject_id,
-                    "date_of_birth": date_of_birth,
-                    "sex": sex,
-                }
+
+            post_natal_days = None  # TODO: handle age in years for humans
+            if isinstance(age, str) and age.startswith("P") and "D" in age:
+                try:
+                    days = int(age[1 : age.index("D")])
+                    post_natal_days = days
+                except ValueError:
+                    print(
+                        f"Could not parse age '{age}'. Setting post_natal_days to None."
+                    )
+                    post_natal_days = None
+            elif isinstance(age, int):
+                post_natal_days = age
+            exp_date_str = estimated_exp_date.strftime("%Y-%m-%d")
+            subject_info = SubjectInfo(
+                subject_id=subject_id,
+                species=species,
+                strain=strain,
+                genotype=genotype,
+                date_of_birth=date_of_birth,
+                date_of_experiment=exp_date_str,
+                post_natal_days=post_natal_days,
+                sex=sex,
             )
+            subject_list.append(subject_info)
 
             print(
                 f"Date of Experiment estimated. Please check for correct date: {estimated_exp_date}"
@@ -313,17 +427,24 @@ class MetaData:
         self.experiment_info = self.experiment_info[keep_indices]
         self.subject_info = self.subject_info[keep_indices]
 
-    def to_dict(self) -> dict:
+    def to_dict(self, unpack=False) -> dict:
         """
         Converts the MetaData object to a dictionary.
+        Args:
+            unpack (bool): If True, unpacks the subject information to dictionary.
 
         Returns:
             dict: A dictionary representation of the MetaData object.
         """
+        if unpack:
+            subject_info = [subject.to_dict() for subject in self.subject_info]
+        else:
+            subject_info = [subject for subject in self.subject_info]
+
         return {
             "file_info": self.file_info,
             "experiment_info": self.experiment_info,
-            "subject_info": self.subject_info,
+            "subject_info": subject_info,
         }
 
     def get_file_path(self) -> list[str]:
@@ -361,6 +482,24 @@ class MetaData:
             list[str]: The license number(s) stored in the MetaData object.
         """
         return self.get_experiment_attribute("license_number")
+
+    def get_subject_id(self) -> list[str]:
+        """
+        Retrieves the subject ID(s) from the MetaData object.
+
+        Returns:
+            list[str]: The subject ID(s) stored in the MetaData object.
+        """
+        return self.get_subject_attribute("subject_id")
+
+    def get_strain(self) -> list[str]:
+        """
+        Retrieves the strain name(s) from the MetaData object.
+
+        Returns:
+            list[str]: The strain name(s) stored in the MetaData object.
+        """
+        return self.get_subject_attribute("strain")
 
     def get_species(self) -> list[str]:
         """
@@ -440,14 +579,10 @@ class MetaData:
         # check that attribute exists
         if self.subject_info.size == 0:
             return []
-        elif attribute not in self.subject_info[0]:
-            raise ValueError(f"Attribute '{attribute}' not found in subject_info.")
+        if hasattr(self.subject_info[0], attribute):
+            return [getattr(subject, attribute) for subject in self.subject_info]
         else:
-            return [
-                subject[attribute]
-                for subject in self.subject_info
-                if attribute in subject
-            ]
+            raise ValueError(f"Attribute '{attribute}' not found in subject_info.")
 
 
 class ExpData:
