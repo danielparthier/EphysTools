@@ -91,10 +91,13 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
                 trace.time[segment_index, :] = segment.analogsignals[0].times
         trace_insert.check_clamp(quick_check=quick_check, warnings=False)
         if trace_insert.clamped:
+            channel_number = trace_insert.channel_number
+
             if isinstance(trace_insert, VoltageTrace):
                 trace_insert = VoltageClamp(channel=trace_insert)
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
+            trace_insert.channel_number = channel_number
         trace_insert.starting_time = Quantity(trace.time[:, 0], time_unit)
         trace_insert.rec_datetime = get_exp_date(
             file_path
@@ -165,10 +168,12 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
                 trace.time[segment_index, :] = segment.analogsignals[0].times
         trace_insert.check_clamp(quick_check=quick_check, warnings=False)
         if trace_insert.clamped:
+            channel_number = trace_insert.channel_number
             if isinstance(trace_insert, VoltageTrace):
                 trace_insert = VoltageClamp(channel=trace_insert)
             elif isinstance(trace_insert, CurrentTrace):
                 trace_insert = CurrentClamp(channel=trace_insert)
+            trace_insert.channel_number = channel_number
         trace_insert.rec_datetime = data_block.rec_datetime
         trace.channel.append(trace_insert)
     if quick_check:
