@@ -63,6 +63,14 @@ def wcp_trace(trace, file_path: str, quick_check: bool = True) -> None:
             trace_insert.sampling_rate = trace.sampling_rate
         else:
             raise ValueError("Signal type not recognized")
+
+        trace_insert.add_group(
+            trace.channel_information.channel_grouping[channel_index]
+        )
+        trace_insert.add_recording_type(
+            trace.channel_information.recording_type[channel_index]
+        )
+
         for segment_index, segment in enumerate(data_block.segments):
             # handle channel mismatch (channels are loaded into the first channel with same label)
             # TODO: check if it can be fixed on neo side or if it is only specific file scenarios
@@ -139,6 +147,14 @@ def abf_trace(trace, file_path: str, quick_check: bool = True) -> None:
             trace_insert.sampling_rate = trace.sampling_rate
         else:
             raise ValueError("Signal type not recognized")
+
+        trace_insert.add_group(
+            trace.channel_information.channel_grouping[channel_index]
+        )
+        trace_insert.add_recording_type(
+            trace.channel_information.recording_type[channel_index]
+        )
+
         for segment_index, segment in enumerate(data_block.segments):
             trace_insert.insert_data(
                 segment.analogsignals[channel_index], segment_index

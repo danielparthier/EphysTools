@@ -70,6 +70,8 @@ class Channel:
         self.sampling_rate: Quantity = Quantity(0, "Hz")
         self.starting_time: Quantity = Quantity(np.zeros(self.sweep_count), "s")
         self.rec_datetime: datetime.datetime | None = None
+        self.group: int | None = None
+        self.recording_type: str | None = None
         self.check_clamp()
 
     def insert_data(self, data: np.ndarray, sweep_count: int) -> None:
@@ -134,6 +136,34 @@ class Channel:
 
         sweep_subset = _get_sweep_subset(self.data, sweep_subset)
         self.average = ChannelAverage(self, sweep_subset)
+
+    def add_group(self, group: int) -> None:
+        """
+        Assigns a group number to the channel.
+
+        Parameters:
+            group (int): The group number to be assigned to the channel.
+
+        Returns:
+            None
+        """
+        self.group = group
+
+    def add_recording_type(self, recording_type: str) -> None:
+        """
+        Assigns a recording type to the channel.
+
+        Parameters:
+            recording_type (str): The recording type to be assigned to the channel.
+
+        Returns:
+            None
+        """
+        if recording_type not in ["field", "cell"]:
+            print(
+                "Warning: Unknown recording type. Please use 'field' or 'cell'. Invalid type might cause issues later on."
+            )
+        self.recording_type = recording_type
 
 
 class ChannelInformation:
