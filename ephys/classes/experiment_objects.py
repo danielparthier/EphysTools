@@ -116,6 +116,14 @@ def get_exp_date(file_name):
     return rec_date
 
 
+class DeviceInfo:
+    def __init__(
+        self, device_name: str = "unknown", device_description: str = ""
+    ) -> None:
+        self.device_name = device_name
+        self.device_description = device_description
+
+
 class SubjectInfo:
     def __init__(
         self,
@@ -609,6 +617,7 @@ class ExpData:
         sort: bool = True,
         **kwargs,
     ) -> None:
+        # self.object_id =
         self.protocols = []
         self.meta_data = MetaData()
         if isinstance(file_path, str):
