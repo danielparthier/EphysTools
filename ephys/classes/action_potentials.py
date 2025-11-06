@@ -377,7 +377,7 @@ class ActionPotentials:
         align_threshold: bool = True,
         threshold: bool = True,
         save_path: str = "action_potentials.png",
-        backend: str = "matplotlib",
+        backend: str = "pyqt",
         **kwargs: Any,
     ) -> None | ActionPotentialsPyQt:
         """

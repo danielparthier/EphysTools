@@ -268,6 +268,7 @@ class TracePlotPyQt(TracePlot):
         self.flat_sweep_index_start = np.array([])
         self.flat_sweep_index_end = np.array([])
         self.highlight: dict[str, int | None] = {"sweep_index": None}
+        self.window_items: list[list[pg.LinearRegionItem]] = [[]]
 
     def plot(
         self,
@@ -310,33 +311,6 @@ class TracePlotPyQt(TracePlot):
 
         pg.setConfigOptions(antialias=self.params.antialiasing)
 
-        def sync_channels(source_region, channel_items, window_index=0):
-            # Get region bounds from the source region
-            min_val, max_val = source_region.getRegion()
-
-            # Update all other regions
-            for r in channel_items:
-                if r is not source_region:
-                    r.blockSignals(True)
-                    r.setRegion((min_val, max_val))
-                    r.blockSignals(False)
-            # Update the trace window property only if we're not in "use_plot" mode
-            if self.params.window_mode != "use_plot":
-                if isinstance(self.trace.window, list) and window_index < len(
-                    self.trace.window
-                ):
-                    self.trace.window[window_index] = (min_val, max_val)
-                else:
-                    # Handle case where window_index is out of bounds or trace.window is not a list
-                    pass
-
-        def make_region_callback(region_obj, channel_items, window_index=0):
-            return lambda: sync_channels(
-                source_region=region_obj,
-                channel_items=channel_items,
-                window_index=window_index,
-            )
-
         if len(self.params.channels) == 0:
             self.params.channels = self.trace.channel_information.channel_number
         trace_select = self.trace.subset(
@@ -372,11 +346,11 @@ class TracePlotPyQt(TracePlot):
         # Handle window regions for interactive selection
         windows_to_display = self.handle_windows()
         if windows_to_display is not None:
-            window_items: list[list[pg.LinearRegionItem]] = [
+            self.window_items: list[list[pg.LinearRegionItem]] = [
                 [] for _ in range(len(windows_to_display))
             ]
         else:
-            window_items: list[list[pg.LinearRegionItem]] = [[]]
+            self.window_items: list[list[pg.LinearRegionItem]] = [[]]
 
         region: pg.LinearRegionItem | None = None
         channel_0: pg.PlotItem | None = None
@@ -447,15 +421,18 @@ class TracePlotPyQt(TracePlot):
 
                 channel_tmp.addItem(sweep_plot)
             if windows_to_display != [(0, 0)]:
-                for win_index, win_item in enumerate(window_items):
-                    if isinstance(window_items, list) and len(window_items) > 0:
+                for win_index, win_item in enumerate(self.window_items):
+                    if (
+                        isinstance(self.window_items, list)
+                        and len(self.window_items) > 0
+                    ):
                         region = pg.LinearRegionItem(
                             values=windows_to_display[win_index],
                             pen=pg.mkPen(color=self.params.window_color),
                             brush=window_fill,
                             hoverBrush=window_fill_hover,
                         )
-                    elif isinstance(window_items, tuple):
+                    elif isinstance(self.window_items, tuple):
                         region = pg.LinearRegionItem(
                             values=windows_to_display,
                             pen=pg.mkPen(color=self.params.window_color),
@@ -466,7 +443,9 @@ class TracePlotPyQt(TracePlot):
                         continue
                     win_item.append(region)
                     region.sigRegionChanged.connect(
-                        make_region_callback(region, win_item, window_index=win_index)
+                        self._make_region_callback(
+                            region, win_item, window_index=win_index
+                        )
                     )
                     print("moved:", region.moving)
                     region.setZValue(10 + win_index)
@@ -507,10 +486,10 @@ class TracePlotPyQt(TracePlot):
             )
         )
 
-        window_items = self.handle_windows()
+        # self.window_items = self.handle_windows()
         if self.trace.window is not None:
             # Update existing regions with new theme colors
-            for i, region in enumerate(window_items):
+            for i, region in enumerate(self.window_items):
                 if isinstance(region, pg.LinearRegionItem):
                     region.setBrush(window_fill)
                     region.setHoverBrush(window_fill_hover)
@@ -530,6 +509,80 @@ class TracePlotPyQt(TracePlot):
                     text=plot_item.getAxis("bottom").labelText,
                 )
                 self._set_curve_pen(plot_item.listDataItems())
+
+    def _sync_channels(
+        self, source_region: pg.LinearRegionItem, channel_items, window_index=0
+    ):
+        # Get region bounds from the source region
+        min_val, max_val = source_region.getRegion()
+
+        # Update all other regions
+        for r in channel_items:
+            if r is not source_region:
+                r.blockSignals(True)
+                r.setRegion((min_val, max_val))
+                r.blockSignals(False)
+        # Update the trace window property only if we're not in "use_plot" mode
+        if self.params.window_mode != "use_plot":
+            if isinstance(self.trace.window, list) and window_index < len(
+                self.trace.window
+            ):
+                self.trace.window[window_index] = (min_val, max_val)
+            else:
+                # Handle case where window_index is out of bounds or trace.window is not a list
+                pass
+
+    def _make_region_callback(
+        self, region_obj: pg.LinearRegionItem, channel_items, window_index=0
+    ):
+        return lambda: self._sync_channels(
+            source_region=region_obj,
+            channel_items=channel_items,
+            window_index=window_index,
+        )
+
+    def add_window(self, window: tuple) -> None:
+        """Add a new window region to the plot."""
+        window_fill = pg.mkBrush(
+            color=tuple(
+                np.round(color_val * 255)
+                for color_val in mcolors.to_rgba(self.params.window_color, alpha=0.5)
+            )
+        )
+        window_fill_hover = pg.mkBrush(
+            color=tuple(
+                np.round(color_val * 255)
+                for color_val in mcolors.to_rgba(self.params.window_color, alpha=0.8)
+            )
+        )
+        for plot_item in self.win.items():
+            if isinstance(plot_item, pg.PlotItem):
+                region = pg.LinearRegionItem(
+                    values=window,
+                    pen=pg.mkPen(color=self.params.window_color),
+                    brush=window_fill,
+                    hoverBrush=window_fill_hover,
+                )
+                region.sigRegionChanged.connect(
+                    self._make_region_callback(region, [region], window_index=0)
+                )
+                region.setZValue(10)
+                for line in region.lines:
+                    line.setPen(self.params.window_color)
+                    line.setHoverPen(self.params.window_color_hover)
+                plot_item.addItem(region)
+
+    def update_windows(self) -> None:
+        """Update the window regions in the plot based on the trace's window property."""
+        if self.trace.window is None:
+            return
+        window_items = self.handle_windows()
+        if len(window_items) == 0:
+            return
+        for i, region in enumerate(window_items):
+            if isinstance(region, pg.LinearRegionItem):
+                if i < len(self.trace.window):
+                    region.setRegion(self.trace.window[i])
 
     def sweep_highlight(
         self, sweep_index: int | None = None, color="red", alpha=1, width=1
